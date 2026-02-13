@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predict Tomorrow's Price</title>
+    <style>
+        /* Basic styling to make the form look clean */
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e2e3e5;
+            border-radius: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Price Prediction Tool</h1>
+    <p>Enter today's data to predict the optimal price for tomorrow.</p>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label>Product Name:</label>
+            <input type="text" name="product_name" placeholder="e.g. Milk 1L" required>
+        </div>
+
+        <div class="form-group">
+            <label>Category:</label>
+            <input type="text" name="category" placeholder="e.g. Dairy" required>
+        </div>
+
+        <div class="form-group">
+            <label>Current Inventory Level:</label>
+            <input type="number" name="inventory" step="1" required>
+        </div>
+
+        <div class="form-group">
+            <label>Expiry Date:</label>
+            <input type="date" name="expiry_date" required>
+        </div>
+
+        <hr>
+
+        <h3>Sales Performance</h3>
+        <p><small>These numbers are needed to calculate demand trends.</small></p>
+
+        <div class="form-group">
+            <label>Units Sold TODAY:</label>
+            <input type="number" name="sales_today" step="1" placeholder="Sales for Lag 1" required>
+        </div>
+
+        <div class="form-group">
+            <label>Units Sold YESTERDAY:</label>
+            <input type="number" name="sales_yesterday" step="1" placeholder="Sales for Lag 2" required>
+        </div>
+
+        <button type="submit">Predict Tomorrow's Price</button>
+    </form>
+
+    {% if price %}
+    <div class="result-box">
+        <h2>Recommended Price: ${{ price }}</h2>
+    </div>
+    {% endif %}
+
+</body>
+
+</html>

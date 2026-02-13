@@ -1,0 +1,27 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project SmartShelf</title>
+    <link rel="stylesheet" href="{% static 'styles/base.css' %}">
+</head>
+
+<body>
+    <div class="landing center">
+        <div class="landing-buttons center">
+            <form action="{% url 'pss_home' %}" method="get">
+                <button type="submit">Server</button>
+            </form>
+
+            <form action="{% url 'checkout_home' %}" method="get">
+                <button type="submit">Checkout</button>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>

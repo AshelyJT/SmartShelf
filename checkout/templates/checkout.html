@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supermarket Till Prototype</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .products-grid {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .products-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .product-cards {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+        }
+
+        .product-card {
+            background: #4CAF50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .product-card:hover {
+            transform: translateY(-2px);
+            background: #45a049;
+        }
+
+        .product-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .product-price {
+            font-size: 20px;
+        }
+
+        .receipt-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .current-transaction {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 2px dashed #ddd;
+        }
+
+        .total-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            background: #e8f5e9;
+            border-radius: 5px;
+        }
+
+        .process-btn {
+            width: 100%;
+            padding: 15px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .process-btn:hover {
+            background: #1976D2;
+        }
+
+        .process-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 400px;
+            text-align: center;
+        }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .number-btn {
+            padding: 20px;
+            font-size: 20px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .number-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .quantity-display {
+            font-size: 24px;
+            margin: 20px 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            min-height: 40px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .cancel-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .enter-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .recent-transactions {
+            margin-top: 30px;
+        }
+
+        .transaction-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .transaction-time {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .modal-btn:disabled {
+            cursor: not-allowed;
+            background: #cccccc !important;
+        }
+
+        .modal-btn:disabled:hover {
+            background: #cccccc !important;
+        }
+
+        .enter-btn {
+            background: #4CAF50;
+            color: white;
+            transition: opacity 0.3s, background 0.3s;
+        }
+
+        .enter-btn:disabled {
+            background: #cccccc;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="products-grid">
+            <h2 class="products-title">Click a Product to Start Transaction</h2>
+            <div class="product-cards" id="product-cards">
+                <!-- Products will be loaded here -->
+            </div>
+
+            <div class="current-transaction" id="current-transaction">
+                <p>No transaction in progress</p>
+            </div>
+
+            <div class="total-display" id="total-display">
+                Total: $0.00
+            </div>
+
+            <button class="process-btn" id="process-btn" disabled>
+                PROCESS TRANSACTION
+            </button>
+        </div>
+
+        <div class="receipt-section">
+            <h2>Recent Transactions</h2>
+            <div class="recent-transactions" id="recent-transactions">
+                <!-- Recent transactions will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Quantity Entry Modal -->
+    <div class="modal" id="quantity-modal">
+        <div class="modal-content">
+            <h3>Enter Quantity</h3>
+            <p id="selected-product">Product: </p>
+            <p id="selected-price">Price: </p>
+
+            <div class="quantity-display" id="quantity-display">1</div>
+
+            <div class="number-pad">
+                <button class="number-btn" data-number="1">1</button>
+                <button class="number-btn" data-number="2">2</button>
+                <button class="number-btn" data-number="3">3</button>
+                <button class="number-btn" data-number="4">4</button>
+                <button class="number-btn" data-number="5">5</button>
+                <button class="number-btn" data-number="6">6</button>
+                <button class="number-btn" data-number="7">7</button>
+                <button class="number-btn" data-number="8">8</button>
+                <button class="number-btn" data-number="9">9</button>
+                <button class="number-btn" data-number="0">0</button>
+                <button class="number-btn" id="clear-btn">C</button>
+                <button class="number-btn" id="backspace-btn">⌫</button>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="modal-btn cancel-btn" id="cancel-btn">Cancel</button>
+                <button class="modal-btn enter-btn" id="enter-btn">Enter</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class TillSystem {
+            constructor() {
+                this.currentProduct = null;
+                this.currentQuantity = 0; // Start with 0
+                this.baseUrl = '/checkout/';
+                this.initialize();
+            }
+
+            initialize() {
+                this.loadProducts();
+                this.bindEvents();
+                this.loadRecentTransactions();
+            }
+
+            async loadProducts() {
+                try {
+                    const response = await fetch(this.baseUrl + 'get-products/');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.displayProducts(data.products);
+                    }
+                } catch (error) {
+                    console.error('Error loading products:', error);
+                    document.getElementById('result').innerHTML =
+                        'Error loading products: ' + error;
+                }
+            }
+
+            displayProducts(products) {
+                const container = document.getElementById('product-cards');
+                container.innerHTML = '';
+
+                products.forEach(product => {
+                    const productCard = document.createElement('div');
+                    productCard.className = 'product-card';
+                    productCard.dataset.id = product.id;
+                    productCard.innerHTML = `
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-category">${product.category}</div>
+                    <div class="product-price">$${product.price.toFixed(2)}</div>
+                `;
+                    productCard.addEventListener('click', () => {
+                        this.selectProduct(product);
+                    });
+                    container.appendChild(productCard);
+                });
+            }
+
+            selectProduct(product) {
+                this.currentProduct = product;
+                this.currentQuantity = 0; // Reset to 0
+                this.showQuantityModal();
+            }
+
+            showQuantityModal() {
+                if (!this.currentProduct) return;
+
+                document.getElementById('selected-product').textContent =
+                    `Product: ${this.currentProduct.name}`;
+                document.getElementById('selected-price').textContent =
+                    `Price: $${this.currentProduct.price.toFixed(2)}`;
+
+                // Reset to 0 and disable Enter button
+                this.currentQuantity = 0;
+                document.getElementById('quantity-display').textContent = '0';
+                document.getElementById('enter-btn').disabled = true;
+                document.getElementById('enter-btn').style.opacity = '0.6';
+
+                const modal = document.getElementById('quantity-modal');
+                modal.style.display = 'flex';
+
+                // Focus on modal for keyboard input
+                setTimeout(() => {
+                    document.getElementById('quantity-display').focus();
+                }, 100);
+            }
+
+            hideQuantityModal() {
+                const modal = document.getElementById('quantity-modal');
+                modal.style.display = 'none';
+            }
+
+            updateQuantityDisplay() {
+                // Update the quantity display in modal
+                document.getElementById('quantity-display').textContent = this.currentQuantity;
+
+                // Enable/disable Enter button based on quantity
+                const enterBtn = document.getElementById('enter-btn');
+                if (this.currentQuantity > 0) {
+                    enterBtn.disabled = false;
+                    enterBtn.style.opacity = '1';
+                } else {
+                    enterBtn.disabled = true;
+                    enterBtn.style.opacity = '0.6';
+                }
+
+                // If we're closing the modal (after pressing Enter), update the main display
+                if (this.currentQuantity > 0) {
+                    const transactionDiv = document.getElementById('current-transaction');
+                    const subtotal = this.currentProduct.price * this.currentQuantity;
+
+                    transactionDiv.innerHTML = `
+                    <strong>Current Transaction:</strong><br>
+                    ${this.currentProduct.name} x${this.currentQuantity}<br>
+                    Unit Price: $${this.currentProduct.price.toFixed(2)}<br>
+                    Subtotal: $${subtotal.toFixed(2)}
+                `;
+
+                    // Update total display
+                    document.getElementById('total-display').textContent =
+                        `Total: $${subtotal.toFixed(2)}`;
+
+                    // Enable process button
+                    document.getElementById('process-btn').disabled = false;
+                }
+            }
+
+            async processTransaction() {
+                if (!this.currentProduct || !this.currentQuantity || this.currentQuantity < 1) {
+                    alert('Please select a product and enter a valid quantity (at least 1)');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(this.baseUrl + 'process-transaction/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCSRFToken()
+                        },
+                        body: JSON.stringify({
+                            product_id: this.currentProduct.id,
+                            quantity: this.currentQuantity
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Show success message
+                        alert(`Transaction successful!\nTotal: $${data.transaction.total.toFixed(2)}`);
+
+                        // Reset interface
+                        this.resetInterface();
+
+                        // Reload recent transactions
+                        this.loadRecentTransactions();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Error processing transaction:', error);
+                    alert('Network error. Please try again.');
+                }
+            }
+
+            resetInterface() {
+                this.currentProduct = null;
+                this.currentQuantity = 0;
+
+                document.getElementById('current-transaction').innerHTML =
+                    '<p>No transaction in progress</p>';
+                document.getElementById('total-display').textContent = 'Total: $0.00';
+                document.getElementById('process-btn').disabled = true;
+
+                this.hideQuantityModal();
+            }
+
+            async loadRecentTransactions() {
+                try {
+                    const response = await fetch(this.baseUrl + 'recent-transactions/');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.displayRecentTransactions(data.transactions);
+                    }
+                } catch (error) {
+                    console.error('Error loading recent transactions:', error);
+                }
+            }
+
+            displayRecentTransactions(transactions) {
+                const container = document.getElementById('recent-transactions');
+                container.innerHTML = '';
+
+                transactions.forEach(transaction => {
+                    const transactionDiv = document.createElement('div');
+                    transactionDiv.className = 'transaction-item';
+                    transactionDiv.innerHTML = `
+                    <div>
+                        <strong>${transaction.product}</strong><br>
+                        <span>${transaction.quantity} × $${transaction.unit_price.toFixed(2)}</span>
+                        <div class="transaction-time">${transaction.time}</div>
+                    </div>
+                    <div style="font-weight: bold;">
+                        $${transaction.total.toFixed(2)}
+                    </div>
+                `;
+                    container.appendChild(transactionDiv);
+                });
+            }
+
+            bindEvents() {
+                // Number pad buttons
+                document.querySelectorAll('.number-btn[data-number]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const number = e.target.dataset.number;
+                        const displayElement = document.getElementById('quantity-display');
+
+                        // If current value is "0", replace it with the number
+                        if (displayElement.textContent === '0') {
+                            displayElement.textContent = number;
+                            this.currentQuantity = parseInt(number);
+                        } else {
+                            // Otherwise, append the number
+                            displayElement.textContent = displayElement.textContent + number;
+                            this.currentQuantity = parseInt(displayElement.textContent);
+                        }
+
+                        // Update Enter button state
+                        this.updateEnterButtonState();
+                    });
+                });
+
+                // Clear button
+                document.getElementById('clear-btn').addEventListener('click', () => {
+                    this.currentQuantity = 0;
+                    document.getElementById('quantity-display').textContent = '0';
+                    this.updateEnterButtonState();
+                });
+
+                // Backspace button
+                document.getElementById('backspace-btn').addEventListener('click', () => {
+                    const displayElement = document.getElementById('quantity-display');
+                    if (displayElement.textContent.length > 1) {
+                        const newValue = displayElement.textContent.slice(0, -1);
+                        displayElement.textContent = newValue;
+                        this.currentQuantity = parseInt(newValue);
+                    } else {
+                        this.currentQuantity = 0;
+                        displayElement.textContent = '0';
+                    }
+                    this.updateEnterButtonState();
+                });
+
+                // Update Enter button state helper
+                this.updateEnterButtonState = () => {
+                    const enterBtn = document.getElementById('enter-btn');
+                    if (this.currentQuantity > 0) {
+                        enterBtn.disabled = false;
+                        enterBtn.style.opacity = '1';
+                    } else {
+                        enterBtn.disabled = true;
+                        enterBtn.style.opacity = '0.6';
+                    }
+                };
+
+                // Modal buttons
+                document.getElementById('cancel-btn').addEventListener('click', () => {
+                    this.hideQuantityModal();
+                    this.resetInterface();
+                });
+
+                document.getElementById('enter-btn').addEventListener('click', () => {
+                    if (this.currentQuantity > 0) {
+                        this.hideQuantityModal();
+                        this.updateQuantityDisplay(); // This will update the main display
+                    }
+                });
+
+                // Process button
+                document.getElementById('process-btn').addEventListener('click', () => {
+                    this.processTransaction();
+                });
+
+                // Close modal when clicking outside
+                document.getElementById('quantity-modal').addEventListener('click', (e) => {
+                    if (e.target.id === 'quantity-modal') {
+                        this.hideQuantityModal();
+                        this.resetInterface();
+                    }
+                });
+
+                // Keyboard support for number pad
+                document.addEventListener('keydown', (e) => {
+                    const modal = document.getElementById('quantity-modal');
+                    if (modal.style.display === 'flex') {
+                        // Handle number keys
+                        if (e.key >= '0' && e.key <= '9') {
+                            e.preventDefault();
+                            const displayElement = document.getElementById('quantity-display');
+
+                            // If current value is "0", replace it
+                            if (displayElement.textContent === '0') {
+                                displayElement.textContent = e.key;
+                                this.currentQuantity = parseInt(e.key);
+                            } else {
+                                // Otherwise, append
+                                displayElement.textContent = displayElement.textContent + e.key;
+                                this.currentQuantity = parseInt(displayElement.textContent);
+                            }
+                            this.updateEnterButtonState();
+                        }
+                        // Handle Enter key
+                        else if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (this.currentQuantity > 0) {
+                                document.getElementById('enter-btn').click();
+                            }
+                        }
+                        // Handle Escape key
+                        else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            document.getElementById('cancel-btn').click();
+                        }
+                        // Handle Backspace key
+                        else if (e.key === 'Backspace') {
+                            e.preventDefault();
+                            document.getElementById('backspace-btn').click();
+                        }
+                        // Handle Delete key
+                        else if (e.key === 'Delete') {
+                            e.preventDefault();
+                            document.getElementById('clear-btn').click();
+                        }
+                    }
+                });
+
+                // Click handler for Enter button to prevent default when disabled
+                document.getElementById('enter-btn').addEventListener('click', (e) => {
+                    if (e.target.disabled) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                });
+            }
+
+            getCSRFToken() {
+                const name = 'csrftoken';
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.till = new TillSystem();
+        });
+    </script>
+
+</body>
+
+</html>

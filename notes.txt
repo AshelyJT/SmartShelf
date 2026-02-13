@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <h1>Supermarket AI Price Setter</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Calculate Optimal Price</button>
+    </form>
+
+    {% if result %}
+    <div style="background-color: #d4edda; padding: 20px; margin-top: 20px;">
+        <h2>Recommended Price: ${{ result }}</h2>
+    </div>
+    {% endif %}
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+from django.shortcuts import render
+import pandas as pd
+import joblib
+import os
+from django.conf import settings
+from django.shortcuts import render
+from .forms import PricePredictionForm
+
+# Create your views here.
+
+def predict_price(request):
+    result = None
+    
+    if request.method == 'POST':
+        form = PricePredictionForm(request.POST)
+        if form.is_valid():
+            # 1. Load Model & Encoders (Path handling is key in Django)
+            model_path = os.path.join(settings.BASE_DIR, 'ProjectSmartShelf/ml_models/price_prediction_model.pkl')
+            cat_encoder_path = os.path.join(settings.BASE_DIR, 'ProjectSmartShelf/ml_models/category_encoder.pkl')
+            
+            model = joblib.load(model_path)
+            cat_encoder = joblib.load(cat_encoder_path)
+            
+            # 2. Get Data from Form
+            data = form.cleaned_data
+            
+            # 3. Preprocess Input (EXACTLY as you did in training)
+            # Example: Encode 'Dairy' -> 0
+            encoded_category = cat_encoder.transform([data['category']])[0]
+            
+            # Create a DataFrame for the model
+            input_features = pd.DataFrame([{
+                'category': encoded_category,
+                'inventory_level': data['inventory_level'],
+                'days_until_expiry': data['days_until_expiry'],
+                'units_sold': data['units_sold'],
+                # Add other features your model expects...
+            }])
+            
+            # 4. Predict
+            prediction = model.predict(input_features)[0]
+            result = round(prediction, 2)
+            
+    else:
+        form = PricePredictionForm()
+
+    return render(request, 'index.html', {'form': form, 'result': result})
+
+
+
+

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Pricing Dashboard</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+       
+        /* Status Colors */
+        .trend-up { color: #28a745; font-weight: bold; background-color: #e6ffec; padding: 4px 8px; border-radius: 4px; }
+        .trend-down { color: #dc3545; font-weight: bold; background-color: #ffe6e6; padding: 4px 8px; border-radius: 4px; }
+        .trend-flat { color: #6c757d; font-weight: bold; background-color: #f8f9fa; padding: 4px 8px; border-radius: 4px; }
+
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 15px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background-color: #343a40; color: white; }
+        tr:hover { background-color: #f1f1f1; }
+
+        /* Button Styling */
+        .btn-apply {
+            background-color: #007bff; color: white; padding: 12px 24px;
+            font-size: 16px; border: none; cursor: pointer; border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .btn-apply:hover { background-color: #0056b3; }
+       
+        .alert { padding: 15px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; margin-bottom: 20px; border-radius: 5px;}
+    </style>
+</head>
+<body>
+
+    <h1>Daily Pricing Recommendations</h1>
+    <p>Review the AI-suggested price changes based on sales velocity and expiration dates.</p>
+   
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+        <button type="submit" name="apply_all" class="btn-apply">
+            Apply All AI Recommendations
+        </button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Inventory</th>
+                <th>Current Price</th>
+                <th>AI Recommended</th>
+                <th>Trend</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data %}
+            <tr>
+                <td><strong>{{ item.product.name }}</strong></td>
+                <td>{{ item.product.category }}</td>
+                <td>{{ item.product.inventory_level }}</td>
+               
+                <td>
+                    {% if item.current_price > 0 %}
+                        ${{ item.current_price }}
+                    {% else %}
+                        <span style="color:red;">Not Set</span>
+                    {% endif %}
+                </td>
+               
+                <td>${{ item.ai_price }}</td>
+               
+                <td>
+                    <span class="{{ item.css_class }}">
+                        {{ item.icon }} {{ item.status }}
+                    </span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align:center; padding: 20px;">
+                    No products found or AI model is not loaded.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>
