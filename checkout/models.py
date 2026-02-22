@@ -23,8 +23,8 @@ class LiveTransaction(models.Model):
         unique=True,
         blank=True
     )
-    date = models.DateField(auto_now_add=True)
-    time = models.TimeField(auto_now_add=True)
+    date = models.DateField()
+    time = models.TimeField()
     day_of_week = models.CharField(max_length=20, blank=True)
     product = models.ForeignKey(
         Product,

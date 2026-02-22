@@ -1,5 +1,5 @@
 from django.shortcuts import render
-
+import datetime
 
 # Create your views here.
 def home(request):
@@ -30,26 +30,30 @@ def checkout(request):
 def process_transaction(request):
     """
     API endpoint to process a transaction
-    Called when user clicks "Process" button
     """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-           
-            # Get product and quantity from request
             product_id = data.get('product_id')
             quantity = int(data.get('quantity', 1))
-           
-            # Get the product
             product = Product.objects.get(id=product_id)
-           
-            # Create and save transaction (auto-calculates everything)
+
+            # Get simulated date from request (set by middleware)
+            simulated_date = getattr(request, 'simulated_date', None)
+            if simulated_date is None:
+                transaction_date = datetime.date.today()
+                print(f"DEBUG [process_transaction]: No simulated date, using real date: {transaction_date}")
+            else:
+                transaction_date = simulated_date
+                print(f"DEBUG [process_transaction]: Using simulated date: {transaction_date}")
+
             transaction = LiveTransaction.objects.create(
                 product=product,
-                quantity=quantity
+                quantity=quantity,
+                date=transaction_date  # force this date
             )
-           
-            # Return success with transaction data
+            print(f"DEBUG [process_transaction]: Transaction created with date {transaction.date}")
+
             return JsonResponse({
                 'success': True,
                 'transaction': {
@@ -64,20 +68,14 @@ def process_transaction(request):
                     'date': transaction.date.strftime('%Y-%m-%d'),
                 }
             })
-           
-        except Product.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'error': 'Product not found'
-            })
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': str(e)
-            })
-   
-    return JsonResponse({'success': False, 'error': 'Invalid request'})
 
+        except Product.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Product not found'})
+        except Exception as e:
+            print(f"DEBUG [process_transaction] ERROR: {e}")
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
 def get_products(request):
     """Get the 5 products for display"""

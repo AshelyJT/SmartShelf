@@ -17,40 +17,34 @@ def home(request):
     return render(request, "home.html")
 
 def analytics_dashboard(request):
-    """Dashboard view for analytics"""
-    # Get today's date
-    today = timezone.now().date()
-    yesterday = today - datetime.timedelta(days=1)
-
-    # Get recent summaries
-    recent_summaries = DailyProductSales.objects.all().order_by("-date")[:20]
-
-    # Get top products for yesterday
-    yesterday_top = DailyProductSales.objects.filter(date=yesterday).order_by(
-        "-units_sold"
-    )[:10]
-
-    # Get top categories for yesterday
+    # Get simulated date from request, fallback to real today if None
+    simulated_today = getattr(request, 'simulated_date', None)
+    if simulated_today is None:
+        simulated_today = timezone.now().date()
+    
+    yesterday = simulated_today - datetime.timedelta(days=1)
+    
+    recent_summaries = DailyProductSales.objects.all().order_by('-date')[:20]
+    yesterday_top = DailyProductSales.objects.filter(date=yesterday).order_by('-units_sold')[:10]
+    
+    # Category data (unchanged)
     from django.db.models import Sum
-
-    category_data = (
-        DailyProductSales.objects.filter(date=yesterday)
-        .values("category")
-        .annotate(total_units=Sum("units_sold"), total_revenue=Sum("total_revenue"))
-        .order_by("-total_units")
-    )
-
+    category_data = DailyProductSales.objects.filter(
+        date=yesterday
+    ).values('category').annotate(
+        total_units=Sum('units_sold'),
+        total_revenue=Sum('total_revenue')
+    ).order_by('-total_units')
+    
     context = {
-        "today": today,
-        "yesterday": yesterday,
-        "recent_summaries": recent_summaries,
-        "yesterday_top": yesterday_top,
-        "category_data": category_data,
-        "total_summaries": DailyProductSales.objects.count(),
+        'today': simulated_today,
+        'yesterday': yesterday,
+        'recent_summaries': recent_summaries,
+        'yesterday_top': yesterday_top,
+        'category_data': category_data,
+        'total_summaries': DailyProductSales.objects.count(),
     }
-
-    return render(request, "dashboard.html", context)
-
+    return render(request, 'dashboard.html', context)
 
 @csrf_exempt
 def generate_summary_api(request):
@@ -304,5 +298,48 @@ def pricing_dashboard(request):
        
         messages.success(request, f"Successfully updated prices for {update_count} products!")
         return redirect('pricing_dashboard')
+    
+    
 
     return render(request, 'pricing_dashboard.html', {'report_data': final_report})
+
+
+@csrf_exempt
+def close_day_advance(request):
+    if request.method == 'POST':
+        try:
+            from checkout.models import LiveTransaction
+            import datetime
+
+            latest_trans = LiveTransaction.objects.order_by('-date').first()
+            if not latest_trans:
+                return JsonResponse({'success': False, 'error': 'No transactions found.'})
+
+            current_date = latest_trans.date
+            print(f"DEBUG: Latest transaction date: {current_date}")
+
+            records = DailyProductSales.generate_daily_summary(current_date)
+
+            next_date = current_date + datetime.timedelta(days=1)
+            request.session['simulated_date'] = next_date.strftime('%Y-%m-%d')
+            print(f"DEBUG: Set session simulated_date to {next_date}")
+
+            return JsonResponse({
+                'success': True,
+                'closed_date': str(current_date),
+                'next_date': str(next_date),
+                'records_created': len(records),
+                'message': f'Closed {current_date}, now at {next_date}.'
+            })
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid method'})
+@csrf_exempt
+def reset_date(request):
+    if request.method == 'POST':
+        if 'simulated_date' in request.session:
+            del request.session['simulated_date']
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False})

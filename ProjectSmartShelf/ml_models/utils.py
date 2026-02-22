@@ -3,9 +3,8 @@ import datetime
 import numpy as np
 from ProjectSmartShelf.apps import ProjectsmartshelfConfig
 from ProjectSmartShelf.models import DailyProductSales
-from checkout.models import Product  # Adjust import if your Product model is elsewhere
+from checkout.models import Product
 
-# Note: We added 'model' as an argument here
 def prepare_input_for_tomorrow(product_name, category, current_inventory, expiry_date,
                                sales_today, sales_yesterday, model):
    
@@ -35,7 +34,7 @@ def prepare_input_for_tomorrow(product_name, category, current_inventory, expiry
     except ValueError:
         encoded_category = -1
 
-    # 4. Create Dictionary of ALL possible features
+    # 4. Dictionary of ALL possible features
     data_dict = {
         "product_name": encoded_product,
         "category": encoded_category,
@@ -116,7 +115,7 @@ def predict_prices_batch():
         except ValueError:
             enc_cat = -1 # Unknown category
 
-        # D. Date Math (Fixed for None values)
+        # D. Date Math
         if p.expiry_date:
             days_until_expiry = (p.expiry_date - tomorrow).days
         else:

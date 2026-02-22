@@ -205,6 +205,14 @@
             background: #ffebee;
             color: #c62828;
         }
+
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #45a049;
+        }
     </style>
 </head>
 
@@ -217,6 +225,14 @@
         </header>
 
         <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Active Day</h3>
+                <div class="value" id="current-day-display">{{ today|date:'Y-m-d' }}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Yesterday</h3>
+                <div class="value" id="yesterday-display">{{ yesterday|date:'Y-m-d' }}</div>
+            </div>
             <div class="stat-card">
                 <h3>Total Summary Records</h3>
                 <div class="value">{{ total_summaries }}</div>
@@ -241,12 +257,15 @@
             <h2>Generate Daily Summary</h2>
             <div class="control-group">
                 <label for="summary-date">Date:</label>
-                <input type="date" id="summary-date" class="date-picker" value="{{ yesterday|date:'Y-m-d' }}">
+                <input type="date" id="summary-date" class="date-picker" 
+                    value="{{ yesterday|date:'Y-m-d' }}">
                 <button onclick="generateSummary()" class="btn btn-primary">
                     Generate Summary
                 </button>
-                <button type="button" class="btn btn-primary" onclick="predict()">Predict</button>
-                <p>Predicted Price: {{ price }}</p>
+                <button onclick="closeDayAdvance()" class="btn btn-success">
+                    🗓️ Close Day & Advance
+                </button>
+                <button onclick="resetSimulatedDate()" class="btn btn-secondary">Reset to Real Date</button>
             </div>
             <div id="summary-result" class="summary-result"></div>
         </div>
@@ -351,6 +370,8 @@
     </div>
 
     <script>
+        const closeDayAdvanceUrl = "{% url 'close_day_advance' %}";
+        const csrfToken = "{{ csrf_token }}"; 
         function generateSummary() {
             const dateInput = document.getElementById('summary-date');
             const date = dateInput.value;
@@ -365,7 +386,7 @@
             resultDiv.className = 'summary-result';
             resultDiv.style.display = 'block';
 
-            fetch('/ProjectSmartShelf/api/generate-summary/', {
+            fetch(closeDayAdvanceUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -426,6 +447,144 @@
         //     // Check if we should auto-generate
         //     // You can add logic here based on your needs
         // });
+
+        function closeDay() {
+            if (!confirm('Are you sure you want to close the day? This will generate a sales summary for today and prepare for the next day.')) {
+                return;
+            }
+            
+            // Get today's date in YYYY-MM-DD format
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+            
+            // Set the date picker to today (optional)
+            document.getElementById('summary-date').value = todayStr;
+            
+            // Call the generate summary function with today's date
+            generateSummaryWithDate(todayStr);
+        }
+
+        function generateSummaryWithDate(dateStr) {
+            const resultDiv = document.getElementById('summary-result');
+            resultDiv.textContent = 'Closing day...';
+            resultDiv.className = 'summary-result';
+            resultDiv.style.display = 'block';
+            
+            fetch('/ProjectSmartShelf/api/generate-summary/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({ date: dateStr })
+            })
+            .then(response => {
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    return response.text().then(text => {
+                        throw new Error(`Server returned non-JSON: ${text.substring(0, 200)}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    resultDiv.textContent = `✅ Day closed successfully! ${data.message}`;
+                    resultDiv.className = 'summary-result success';
+                    
+                    // Optionally reload the page after a delay to show new data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    resultDiv.textContent = `❌ Error: ${data.error}`;
+                    resultDiv.className = 'summary-result error';
+                }
+            })
+            .catch(error => {
+                resultDiv.textContent = `❌ Network error: ${error.message}`;
+                resultDiv.className = 'summary-result error';
+            });
+        }
+
+        // Update existing generateSummary to use the new function
+        function generateSummary() {
+            const dateInput = document.getElementById('summary-date');
+            const date = dateInput.value;
+            
+            if (!date) {
+                alert('Please select a date');
+                return;
+            }
+            
+            generateSummaryWithDate(date);
+        }
+
+        // Keep generateYesterday as before
+        function generateYesterday() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const formattedDate = yesterday.toISOString().split('T')[0];
+            document.getElementById('summary-date').value = formattedDate;
+            generateSummary();
+        }
+
+    function closeDayAdvance() {
+        if (!confirm('Close the current day, generate summary, and advance to the next day?')) {
+            return;
+        }
+        
+        const resultDiv = document.getElementById('summary-result');
+        resultDiv.textContent = 'Closing day and advancing...';
+        resultDiv.className = 'summary-result';
+        resultDiv.style.display = 'block';
+        
+        fetch(closeDayAdvanceUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                resultDiv.textContent = `✅ ${data.message}`;
+                resultDiv.className = 'summary-result success';
+                
+                // Update displayed dates without full reload (optional)
+                document.getElementById('current-day-display').textContent = data.next_date;
+                document.getElementById('yesterday-display').textContent = 
+                    new Date(new Date(data.next_date).setDate(new Date(data.next_date).getDate() - 1)).toISOString().split('T')[0];
+                
+                // Reload after 2 seconds to refresh all data
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                resultDiv.textContent = `❌ Error: ${data.error}`;
+                resultDiv.className = 'summary-result error';
+            }
+        })
+        .catch(error => {
+            resultDiv.textContent = `❌ Network error: ${error.message}`;
+            resultDiv.className = 'summary-result error';
+        });
+    }
+
+    function resetSimulatedDate() {
+        if (confirm('Reset to real system date?')) {
+            fetch('/analytics/api/reset-date/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            }).then(() => window.location.reload());
+        }
+    }
     </script>
 </body>
 

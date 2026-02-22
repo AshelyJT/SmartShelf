@@ -50,6 +50,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'ProjectSmartShelf.middleware.SimulatedDateMiddleware',  # Custom middleware for simulated date
 ]
 
 ROOT_URLCONF = 'SmartShelf.urls'
@@ -64,6 +65,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'ProjectSmartShelf.context_processors.simulated_date',  # Add custom context processor
             ],
         },
     },

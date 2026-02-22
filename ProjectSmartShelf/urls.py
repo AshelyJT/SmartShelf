@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/product-trend/", views.product_trend_api, name="product_trend_by_name"),
     path("predict/", views.predict_tomorrow_price, name='predict_price'),
     path("pricing-dashboard/", views.pricing_dashboard, name="pricing_dashboard"),
+    path('api/close-day-advance/', views.close_day_advance, name='close_day_advance'),
 ]
 
 
