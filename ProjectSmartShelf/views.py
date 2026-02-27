@@ -243,22 +243,20 @@ def predict_tomorrow_price(request):
 
 
 def pricing_dashboard(request):
-    # 1. Run the AI Batch Prediction
-    # Returns a list of tuples: [(ProductObject, 12.5023), ...]
-    raw_results = predict_prices_batch()
+    # Get simulated date from request (if available), otherwise use real today
+    simulated_today = getattr(request, 'simulated_date', None)
+    if simulated_today is None:
+        simulated_today = timezone.now().date()
 
-    # 2. Process Data for Display (Fixing the "Trend" Logic)
+    # 1. Run the AI Batch Prediction using the simulated date as base
+    raw_results = predict_prices_batch(base_date=simulated_today)
+
+    # 2. Process Data for Display
     final_report = []
-   
     for product, raw_ai_price in raw_results:
-        # Convert DB price to Decimal (handle None/0 cases)
         current_price = product.price if product.price else Decimal('0.00')
-       
-        # Convert AI float to Decimal and round to 2 places
-        # This ensures 1.79 (float) becomes 1.79 (Decimal) for accurate comparison
         ai_price = Decimal(str(raw_ai_price)).quantize(Decimal('0.01'))
-       
-        # Determine Status strictly based on rounded numbers
+
         if ai_price > current_price:
             status = "Increase"
             trend_icon = "⬆"
@@ -271,7 +269,7 @@ def pricing_dashboard(request):
             status = "Keep"
             trend_icon = "➡"
             css_class = "trend-flat"
-           
+
         final_report.append({
             'product': product,
             'current_price': current_price,
@@ -284,25 +282,17 @@ def pricing_dashboard(request):
     # 3. Handle "Apply All" Button Click
     if request.method == "POST" and "apply_all" in request.POST:
         update_count = 0
-       
-        # We iterate through our processed list to ensure we save the ROUNDED price
         for item in final_report:
             product = item['product']
             new_price = item['ai_price']
-           
-            # Only update if the price is actually different
             if new_price != product.price:
                 product.price = new_price
                 product.save()
                 update_count += 1
-       
         messages.success(request, f"Successfully updated prices for {update_count} products!")
         return redirect('pricing_dashboard')
-    
-    
 
     return render(request, 'pricing_dashboard.html', {'report_data': final_report})
-
 
 @csrf_exempt
 def close_day_advance(request):

@@ -67,17 +67,23 @@ def prepare_input_for_tomorrow(product_name, category, current_inventory, expiry
 
     return df
 
-def predict_prices_batch():
+def predict_prices_batch(base_date=None):
     """
     Generates AI price recommendations for ALL products in the database.
+    If base_date is provided, it uses that as the "current" day.
+    Otherwise, uses today's real date.
     """
     model = ProjectsmartshelfConfig.model
-    today = datetime.date.today()
+    
+    # Use provided base_date, or fall back to real today
+    if base_date is None:
+        base_date = datetime.date.today()
+    
+    today = base_date
     yesterday = today - datetime.timedelta(days=1)
     tomorrow = today + datetime.timedelta(days=1)
 
-    # 1. OPTIMIZATION: Fetch Sales History in Bulk (2 Queries only)
-    # create a dictionary: {'Milk': 50, 'Bread': 12, ...}
+    # 1. Fetch Sales History in Bulk
     sales_today_map = {
         item.product_name: item.units_sold
         for item in DailyProductSales.objects.filter(date=today)
@@ -88,41 +94,38 @@ def predict_prices_batch():
         for item in DailyProductSales.objects.filter(date=yesterday)
     }
 
-    # 2. Get All Products (assuming Product model has expiry/inventory)
+    # 2. Get All Products
     products = Product.objects.all()
     data_list = []
-    valid_products = [] # Keep track of which product matches which row
+    valid_products = []
 
     for p in products:
-        # A. Look up sales from our dictionaries (Fast!)
-        s_today = sales_today_map.get(p.name, 0)      # Default to 0 if no record
-        s_yesterday = sales_yesterday_map.get(p.name, 0) # Default to 0 if no record
+        s_today = sales_today_map.get(p.name, 0)
+        s_yesterday = sales_yesterday_map.get(p.name, 0)
 
-        # B. Calculate Demand Change
+        # Demand Change
         if s_yesterday == 0:
             demand_change = 0
         else:
             demand_change = ((s_today - s_yesterday) / s_yesterday) * 100
 
-        # C. Encode Categorical Data
+        # Encode categorical data
         try:
             enc_prod = ProjectsmartshelfConfig.prod_encoder.transform([p.name])[0]
         except ValueError:
-            enc_prod = -1 # Unknown product
+            enc_prod = -1
            
         try:
             enc_cat = ProjectsmartshelfConfig.cat_encoder.transform([p.category])[0]
         except ValueError:
-            enc_cat = -1 # Unknown category
+            enc_cat = -1
 
-        # D. Date Math
+        # Days until expiry (relative to tomorrow)
         if p.expiry_date:
             days_until_expiry = (p.expiry_date - tomorrow).days
         else:
-            # Fallback: If no date is set, assume it lasts 30 days (or any default you prefer)
             days_until_expiry = 30
 
-        # E. Build Row
         row = {
             "product_name": enc_prod,
             "category": enc_cat,
@@ -141,25 +144,19 @@ def predict_prices_batch():
         data_list.append(row)
         valid_products.append(p)
 
-    # 3. Create DataFrame
     if not data_list:
         return []
 
     df = pd.DataFrame(data_list)
 
-    # 4. Predict
     if model:
-        # Align columns
         try:
             df = df[model.feature_names_in_]
         except AttributeError:
-            pass # Use default order if specific feature names aren't saved
+            pass
            
         raw_predictions = model.predict(df)
-       
-        # 5. Combine Product + Prediction
-        # Returns a list of tuples: [(ProductObj, 12.50), (ProductObj, 10.00)]
-        clean_prices = [round(float(price),2) for price in raw_predictions]
+        clean_prices = [round(float(price), 2) for price in raw_predictions]
         results = zip(valid_products, clean_prices)
         return list(results)
 
