@@ -55,98 +55,66 @@ class DailyProductSales(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = "daily_product_sales"
-        verbose_name = "Daily Product Sales"
-        verbose_name_plural = "Daily Product Sales"
-        ordering = ["-date", "category", "product_name"]
-        unique_together = ["date", "product_name"]  # One record per product per day
+        db_table = 'daily_product_sales'
+        verbose_name = 'Daily Product Sales'
+        verbose_name_plural = 'Daily Product Sales'
+        ordering = ['-date', 'category', 'product_name']
+        unique_together = ['date', 'product_name']  # One record per product per day
         indexes = [
-            models.Index(fields=["date"]),
-            models.Index(fields=["category"]),
-            models.Index(fields=["product_name"]),
-            models.Index(fields=["day_of_week"]),
+            models.Index(fields=['date']),
+            models.Index(fields=['category']),
+            models.Index(fields=['product_name']),
+            models.Index(fields=['day_of_week']),
         ]
 
     def save(self, *args, **kwargs):
-        """Auto-calculate total revenue before saving"""
         if self.units_sold and self.current_price:
             self.total_revenue = self.current_price * self.units_sold
-
-        # Set day_of_week from date if not provided
         if not self.day_of_week and self.date:
-            self.day_of_week = self.date.strftime("%A")
-
+            self.day_of_week = self.date.strftime('%A')
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.date} - {self.product_name} - {self.units_sold} units"
-
-    @property
-    def avg_price_per_unit(self):
-        """Average price per unit (same as current_price for consistency)"""
-        return self.current_price
 
     @classmethod
     def generate_daily_summary(cls, target_date=None):
         """
-        Generate daily summary for all products for a specific date
-        If no date provided, uses yesterday's date
+        Generate daily summary for ALL products on a specific date.
+        Products with no sales get units_sold = 0.
         """
         from checkout.models import LiveTransaction, Product
+        import datetime
 
         if target_date is None:
             target_date = datetime.date.today() - datetime.timedelta(days=1)
 
         print(f"Generating daily summary for {target_date}...")
-
-        # Get all transactions for the target date
-        transactions = LiveTransaction.objects.filter(date=target_date)
-
-        if not transactions.exists():
-            print(f"No transactions found for {target_date}")
-            return []
-
-        # Group transactions by product
-        from django.db.models import Sum
-        from collections import defaultdict
-
-        # Get product info and sum quantities
-        product_sales = defaultdict(
-            lambda: {"units": 0, "price": None, "category": None}
-        )
-
-        for transaction in transactions:
-            product_id = transaction.product_id
-            product_sales[product_id]["units"] += transaction.quantity
-            product_sales[product_id]["price"] = transaction.unit_price
-            product_sales[product_id]["category"] = transaction.category
-            product_sales[product_id]["name"] = transaction.product.name
-
-        # Create or update DailyProductSales records
+        
+        # Get all products
+        products = Product.objects.all()
         created_records = []
-        for product_id, sales_data in product_sales.items():
-            # Get or create the daily summary record
-            daily_sale, created = cls.objects.get_or_create(
+
+        for product in products:
+            # Sum quantities for this product on target_date
+            total_quantity = LiveTransaction.objects.filter(
                 date=target_date,
-                product_name=sales_data["name"],
+                product=product
+            ).aggregate(total=models.Sum('quantity'))['total'] or 0
+
+            # Use the product's current price (assumes price didn't change during the day)
+            price = product.price
+
+            # Create or update the daily sales record
+            daily_sale, created = cls.objects.update_or_create(
+                date=target_date,
+                product_name=product.name,
                 defaults={
-                    "day_of_week": target_date.strftime("%A"),
-                    "category": sales_data["category"],
-                    "current_price": sales_data["price"],
-                    "units_sold": sales_data["units"],
-                },
+                    'day_of_week': target_date.strftime('%A'),
+                    'category': product.category,
+                    'current_price': price,
+                    'units_sold': total_quantity,
+                }
             )
-
-            # If record already exists, update it
-            if not created:
-                daily_sale.units_sold = sales_data["units"]
-                daily_sale.current_price = sales_data["price"]
-                daily_sale.save()
-
             created_records.append(daily_sale)
-            print(
-                f"  - {sales_data['name']}: {sales_data['units']} units @ ${sales_data['price']}"
-            )
+            print(f"  - {product.name}: {total_quantity} units @ ${price}")
 
         print(f"Generated {len(created_records)} daily summaries for {target_date}")
         return created_records

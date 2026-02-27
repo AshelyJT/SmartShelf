@@ -298,21 +298,30 @@ def pricing_dashboard(request):
 def close_day_advance(request):
     if request.method == 'POST':
         try:
-            from checkout.models import LiveTransaction
-            import datetime
+            # Get the current simulated date from session
+            simulated_date_str = request.session.get('simulated_date')
+            if simulated_date_str:
+                current_date = datetime.datetime.strptime(simulated_date_str, '%Y-%m-%d').date()
+            else:
+                # No simulated date set yet – use the latest transaction date or today
+                from checkout.models import LiveTransaction
+                latest_trans = LiveTransaction.objects.order_by('-date').first()
+                if latest_trans:
+                    current_date = latest_trans.date
+                else:
+                    current_date = timezone.now().date()
+                # Set the simulated date to this starting point
+                request.session['simulated_date'] = current_date.strftime('%Y-%m-%d')
 
-            latest_trans = LiveTransaction.objects.order_by('-date').first()
-            if not latest_trans:
-                return JsonResponse({'success': False, 'error': 'No transactions found.'})
+            print(f"DEBUG: Closing day for {current_date}")
 
-            current_date = latest_trans.date
-            print(f"DEBUG: Latest transaction date: {current_date}")
-
+            # Generate summary for that date (will include zeros for unsold products)
             records = DailyProductSales.generate_daily_summary(current_date)
 
+            # Advance to the next day
             next_date = current_date + datetime.timedelta(days=1)
             request.session['simulated_date'] = next_date.strftime('%Y-%m-%d')
-            print(f"DEBUG: Set session simulated_date to {next_date}")
+            print(f"DEBUG: Advanced to {next_date}")
 
             return JsonResponse({
                 'success': True,
@@ -326,6 +335,7 @@ def close_day_advance(request):
             traceback.print_exc()
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid method'})
+
 @csrf_exempt
 def reset_date(request):
     if request.method == 'POST':
