@@ -326,22 +326,43 @@
                 products.forEach(product => {
                     const productCard = document.createElement('div');
                     productCard.className = 'product-card';
+                    
+                    // If inventory is zero, style it as disabled
+                    if (product.inventory <= 0) {
+                        productCard.classList.add('out-of-stock');
+                        productCard.style.pointerEvents = 'none';
+                        productCard.style.opacity = '0.5';
+                        productCard.style.cursor = 'not-allowed';
+                    }
+                    
                     productCard.dataset.id = product.id;
                     productCard.innerHTML = `
-                    <div class="product-name">${product.name}</div>
-                    <div class="product-category">${product.category}</div>
-                    <div class="product-price">$${product.price.toFixed(2)}</div>
-                `;
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-category">${product.category}</div>
+                        <div class="product-price">$${product.price.toFixed(2)}</div>
+                        <div class="product-inventory">Stock: ${product.inventory}</div>
+                    `;
+                    
+                    // Only allow click if inventory > 0
                     productCard.addEventListener('click', () => {
-                        this.selectProduct(product);
+                        if (product.inventory > 0) {
+                            this.selectProduct(product);
+                        } else {
+                            alert('Out of stock!');
+                        }
                     });
+                    
                     container.appendChild(productCard);
                 });
             }
 
             selectProduct(product) {
+                if (product.inventory <= 0) {
+                    alert('Out of stock!');
+                    return;
+                }
                 this.currentProduct = product;
-                this.currentQuantity = 0; // Reset to 0
+                this.currentQuantity = 0; // start with 0
                 this.showQuantityModal();
             }
 
@@ -410,7 +431,7 @@
 
             async processTransaction() {
                 if (!this.currentProduct || !this.currentQuantity || this.currentQuantity < 1) {
-                    alert('Please select a product and enter a valid quantity (at least 1)');
+                    alert('Please select a product and enter a valid quantity');
                     return;
                 }
 
@@ -430,11 +451,13 @@
                     const data = await response.json();
 
                     if (data.success) {
-                        // Show success message
                         alert(`Transaction successful!\nTotal: $${data.transaction.total.toFixed(2)}`);
 
-                        // Reset interface
+                        // Reset the till interface
                         this.resetInterface();
+
+                        // Reload products to update stock counts (real-time update)
+                        await this.loadProducts();
 
                         // Reload recent transactions
                         this.loadRecentTransactions();

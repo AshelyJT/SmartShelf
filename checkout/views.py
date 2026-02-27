@@ -25,12 +25,8 @@ def checkout(request):
         'recent_transactions': recent_transactions,
     })
 
-
 @csrf_exempt
 def process_transaction(request):
-    """
-    API endpoint to process a transaction
-    """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -38,21 +34,27 @@ def process_transaction(request):
             quantity = int(data.get('quantity', 1))
             product = Product.objects.get(id=product_id)
 
-            # Get simulated date from request (set by middleware)
-            simulated_date = getattr(request, 'simulated_date', None)
-            if simulated_date is None:
-                transaction_date = datetime.date.today()
-                print(f"DEBUG [process_transaction]: No simulated date, using real date: {transaction_date}")
-            else:
-                transaction_date = simulated_date
-                print(f"DEBUG [process_transaction]: Using simulated date: {transaction_date}")
+            # Check inventory
+            if product.inventory_level < quantity:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Insufficient inventory. Available: {product.inventory_level}'
+                })
 
+            # Get simulated date
+            simulated_date = getattr(request, 'simulated_date', None)
+            transaction_date = simulated_date if simulated_date else datetime.date.today()
+
+            # Create transaction
             transaction = LiveTransaction.objects.create(
                 product=product,
                 quantity=quantity,
-                date=transaction_date  # force this date
+                date=transaction_date
             )
-            print(f"DEBUG [process_transaction]: Transaction created with date {transaction.date}")
+
+            # Deduct inventory
+            product.inventory_level -= quantity
+            product.save()
 
             return JsonResponse({
                 'success': True,
@@ -72,15 +74,13 @@ def process_transaction(request):
         except Product.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'Product not found'})
         except Exception as e:
-            print(f"DEBUG [process_transaction] ERROR: {e}")
             return JsonResponse({'success': False, 'error': str(e)})
 
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
+
 def get_products(request):
-    """Get the 5 products for display"""
-    products = Product.objects.all()[:5]
-   
+    products = Product.objects.all()[:5]  # adjust as needed
     product_list = []
     for product in products:
         product_list.append({
@@ -88,12 +88,9 @@ def get_products(request):
             'name': product.name,
             'category': product.category,
             'price': float(product.price),
+            'inventory': product.inventory_level,  # send inventory level
         })
-   
-    return JsonResponse({
-        'success': True,
-        'products': product_list
-    })
+    return JsonResponse({'success': True, 'products': product_list})
 
 def recent_transactions(request):
     """Get recent transactions for display"""
