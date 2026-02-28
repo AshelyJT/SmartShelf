@@ -83,7 +83,6 @@ def generate_summary_api(request):
 
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
-
 def sales_report_api(request):
     """API endpoint to get sales data"""
     # Get date parameters
@@ -148,7 +147,6 @@ def sales_report_api(request):
             "record_count": queryset.count(),
         }
     )
-
 
 def product_trend_api(request, product_id=None):
     """API endpoint to get product trend data"""
@@ -354,7 +352,6 @@ def reset_date(request):
             del request.session['simulated_date']
         return JsonResponse({'success': True})
     return JsonResponse({'success': False})
-
 
 def apply_single_price(request):
     if request.method == 'POST':
