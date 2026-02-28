@@ -33,10 +33,14 @@
     <h1>Daily Pricing Recommendations</h1>
     <p>Review the AI-suggested price changes based on sales velocity and expiration dates.</p>
    
+    <h2>Current date: {{ current_date|date:"F j, Y" }}</h2>
+
     {% if messages %}
+    <ul class="messages">
         {% for message in messages %}
-            <div class="alert">{{ message }}</div>
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
         {% endfor %}
+    </ul>
     {% endif %}
 
     <form method="POST">
@@ -51,44 +55,43 @@
             <tr>
                 <th>Product</th>
                 <th>Category</th>
-                <th>Inventory</th>
                 <th>Current Price</th>
-                <th>AI Recommended</th>
+                <th>Expiry Date</th>
+                <th>Days Until Expiry</th>
+                <th>AI Recommended Price</th>
                 <th>Trend</th>
+                <th>Action</th>   <!-- new column -->
             </tr>
         </thead>
         <tbody>
             {% for item in report_data %}
-            <tr>
-                <td><strong>{{ item.product.name }}</strong></td>
+            <tr class="{{ item.css_class }}">
+                <td>{{ item.product.name }}</td>
                 <td>{{ item.product.category }}</td>
-                <td>{{ item.product.inventory_level }}</td>
-               
+                <td>${{ item.current_price }}</td>
+                <td>{{ item.product.expiry_date|date:"F j, Y" }}</td>
                 <td>
-                    {% if item.current_price > 0 %}
-                        ${{ item.current_price }}
+                    {% if item.days_until_expiry < 0 %}
+                        <span style="color: darkred;">Expired ({{ item.days_until_expiry }} days)</span>
+                    {% elif item.days_until_expiry <= 7 %}
+                        <span style="color: orange;">{{ item.days_until_expiry }} days</span>
                     {% else %}
-                        <span style="color:red;">Not Set</span>
+                        {{ item.days_until_expiry }} days
                     {% endif %}
                 </td>
-               
                 <td>${{ item.ai_price }}</td>
-               
+                <td>{{ item.icon }} {{ item.status }}</td>
                 <td>
-                    <span class="{{ item.css_class }}">
-                        {{ item.icon }} {{ item.status }}
-                    </span>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" style="text-align:center; padding: 20px;">
-                    No products found or AI model is not loaded.
+                    <form method="post" action="{% url 'apply_single_price' %}" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="product_id" value="{{ item.product.id }}">
+                        <input type="hidden" name="new_price" value="{{ item.ai_price }}">
+                        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                    </form>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-
 </body>
 </html>

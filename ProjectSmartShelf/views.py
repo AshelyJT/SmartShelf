@@ -241,22 +241,22 @@ def predict_tomorrow_price(request):
 
     return render(request, "predict_price.html", {"price": predicted_price})
 
-
 def pricing_dashboard(request):
-    # Get simulated date from request (if available), otherwise use real today
+    # Get simulated date (if any) or use real today
     simulated_today = getattr(request, 'simulated_date', None)
     if simulated_today is None:
         simulated_today = timezone.now().date()
 
-    # 1. Run the AI Batch Prediction using the simulated date as base
+    # Run AI Batch Prediction using simulated date as base
     raw_results = predict_prices_batch(base_date=simulated_today)
 
-    # 2. Process Data for Display
     final_report = []
     for product, raw_ai_price in raw_results:
         current_price = product.price if product.price else Decimal('0.00')
+        expiry_date = product.expiry_date
         ai_price = Decimal(str(raw_ai_price)).quantize(Decimal('0.01'))
 
+        # Determine price trend
         if ai_price > current_price:
             status = "Increase"
             trend_icon = "⬆"
@@ -270,16 +270,27 @@ def pricing_dashboard(request):
             trend_icon = "➡"
             css_class = "trend-flat"
 
+        # Calculate days until expiry (using simulated today)
+        if product.expiry_date:
+            days_until_expiry = (product.expiry_date - simulated_today).days
+            if days_until_expiry < 0:
+                days_until_expiry = 0  # or keep negative to show expired
+        else:
+            days_until_expiry = 30  # default as in prediction
+
         final_report.append({
             'product': product,
             'current_price': current_price,
+            'current_date': simulated_today,
+            'expiry_date': expiry_date,
             'ai_price': ai_price,
             'status': status,
             'icon': trend_icon,
-            'css_class': css_class
+            'css_class': css_class,
+            'days_until_expiry': days_until_expiry,
         })
 
-    # 3. Handle "Apply All" Button Click
+    # Handle "Apply All" button
     if request.method == "POST" and "apply_all" in request.POST:
         update_count = 0
         for item in final_report:
@@ -292,7 +303,7 @@ def pricing_dashboard(request):
         messages.success(request, f"Successfully updated prices for {update_count} products!")
         return redirect('pricing_dashboard')
 
-    return render(request, 'pricing_dashboard.html', {'report_data': final_report})
+    return render(request, 'pricing_dashboard.html', {'report_data': final_report, 'current_date': simulated_today,})
 
 @csrf_exempt
 def close_day_advance(request):
@@ -343,3 +354,24 @@ def reset_date(request):
             del request.session['simulated_date']
         return JsonResponse({'success': True})
     return JsonResponse({'success': False})
+
+
+def apply_single_price(request):
+    if request.method == 'POST':
+        product_id = request.POST.get('product_id')
+        new_price = request.POST.get('new_price')
+        try:
+            product = Product.objects.get(id=product_id)
+            new_price_decimal = Decimal(new_price).quantize(Decimal('0.01'))
+            if product.price != new_price_decimal:
+                product.price = new_price_decimal
+                product.save()
+                messages.success(request, f"Price updated for {product.name}.")
+            else:
+                messages.info(request, f"Price for {product.name} unchanged.")
+        except Product.DoesNotExist:
+            messages.error(request, "Product not found.")
+        except Exception as e:
+            messages.error(request, f"Error: {e}")
+        return redirect('pricing_dashboard')
+    return redirect('pricing_dashboard')
