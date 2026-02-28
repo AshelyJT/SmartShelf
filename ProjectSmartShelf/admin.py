@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DailyProductSales
+from .models import DailyProductSales, ProductLCDMapping
 import datetime
 
 @admin.register(DailyProductSales)
@@ -47,3 +47,8 @@ class DailyProductSalesAdmin(admin.ModelAdmin):
 
     generate_yesterday_summary.short_description = "Generate yesterday's sales summary"
     generate_today_summary.short_description = "Generate today's sales summary (so far)"
+
+@admin.register(ProductLCDMapping)
+class ProductLCDMappingAdmin(admin.ModelAdmin):
+    list_display = ['product', 'i2c_address']
+    search_fields = ['product__name', 'i2c_address']

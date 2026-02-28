@@ -2,7 +2,7 @@ from django.db import models
 from django.utils import timezone
 import datetime
 from decimal import Decimal
-
+from checkout.models import Product
 
 class DailyProductSales(models.Model):
     """
@@ -131,3 +131,10 @@ class DailyProductSales(models.Model):
             current_date += datetime.timedelta(days=1)
 
         return all_records
+    
+class ProductLCDMapping(models.Model):
+    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='lcd_mapping')
+    i2c_address = models.CharField(max_length=10, help_text="e.g., 0x23")
+
+    def __str__(self):
+        return f"{self.product.name} -> {self.i2c_address}"
