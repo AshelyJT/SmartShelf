@@ -1,4 +1,6 @@
 from django import forms
+from django.contrib.auth.models import User
+
 
 class PricePredictionForm(forms.Form):
     CATEGORY_CHOICES = [('Dairy', 'Dairy'), ('Meat', 'Meat'), ('Produce', 'Produce')] 
@@ -8,3 +10,4 @@ class PricePredictionForm(forms.Form):
     inventory_level = forms.IntegerField(label='Current Inventory')
     days_until_expiry = forms.IntegerField(label='Days Until Expiry')
     units_sold = forms.IntegerField(label='Avg Units Sold')
+

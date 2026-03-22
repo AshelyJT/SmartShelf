@@ -3,19 +3,46 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from checkout.models import LiveTransaction
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.decorators import login_required
+from django.urls import reverse_lazy, reverse
+from django.conf import settings
 from checkout.models import Product
 from decimal import Decimal
 from .models import DailyProductSales
 from .apps import ProjectsmartshelfConfig
 from .ml_models.utils import prepare_input_for_tomorrow, predict_prices_batch
 
-# Create your views here.
-def home(request):
-    return render(request, "home.html")
+def login_view(request):
+    error_message = ""
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            if user.is_staff:
+                login(request, user)
+                next_url = (
+                    request.POST.get("next") or
+                    request.GET.get("next") or
+                    reverse(settings.LOGIN_REDIRECT_URL)
+                )
+                return redirect(next_url)
+            else:
+                error_message = "You do not have staff privileges!"
+        else:
+            error_message = "Invalid username or password. Please try again."
+    return render(request, "staff_login.html", {"error": error_message})
 
+def staff_logout_view(request):
+    logout(request)
+    return redirect(reverse('staff_login'))
+
+@staff_member_required(login_url='staff_login')
 def analytics_dashboard(request):
     # Get simulated date from request, fallback to real today if None
     simulated_today = getattr(request, 'simulated_date', None)
@@ -46,7 +73,7 @@ def analytics_dashboard(request):
     }
     return render(request, 'dashboard.html', context)
 
-@csrf_exempt
+@staff_member_required(login_url='staff_login')
 def generate_summary_api(request):
     """API endpoint to generate daily summary"""
     if request.method == "POST":
@@ -83,6 +110,7 @@ def generate_summary_api(request):
 
     return JsonResponse({"success": False, "error": "Invalid request method"})
 
+@staff_member_required(login_url='staff_login')
 def sales_report_api(request):
     """API endpoint to get sales data"""
     # Get date parameters
@@ -148,6 +176,7 @@ def sales_report_api(request):
         }
     )
 
+@staff_member_required(login_url='staff_login')
 def product_trend_api(request, product_id=None):
     """API endpoint to get product trend data"""
     from checkout.models import Product
@@ -209,6 +238,7 @@ def product_trend_api(request, product_id=None):
             {"success": False, "error": "No sales data found for this product"}
         )
 
+@staff_member_required(login_url='staff_login')
 def predict_tomorrow_price(request):
     predicted_price = None
 
@@ -239,6 +269,7 @@ def predict_tomorrow_price(request):
 
     return render(request, "predict_price.html", {"price": predicted_price})
 
+@staff_member_required(login_url='staff_login')
 def pricing_dashboard(request):
     # Get simulated date (if any) or use real today
     simulated_today = getattr(request, 'simulated_date', None)
@@ -303,7 +334,7 @@ def pricing_dashboard(request):
 
     return render(request, 'pricing_dashboard.html', {'report_data': final_report, 'current_date': simulated_today,})
 
-@csrf_exempt
+@staff_member_required(login_url='staff_login')
 def close_day_advance(request):
     if request.method == 'POST':
         try:
@@ -345,7 +376,7 @@ def close_day_advance(request):
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid method'})
 
-@csrf_exempt
+@staff_member_required(login_url='staff_login')
 def reset_date(request):
     if request.method == 'POST':
         if 'simulated_date' in request.session:
@@ -353,6 +384,7 @@ def reset_date(request):
         return JsonResponse({'success': True})
     return JsonResponse({'success': False})
 
+@staff_member_required(login_url='staff_login')
 def apply_single_price(request):
     if request.method == 'POST':
         product_id = request.POST.get('product_id')

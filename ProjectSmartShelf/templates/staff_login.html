@@ -1,0 +1,113 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SmartShelf</title>
+    <!-- Bootstrap 5 CSS (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #5ea4ff 0%, #001aff 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border: none;
+        }
+
+        .card-header {
+            background: transparent;
+            border-bottom: none;
+            text-align: center;
+            padding: 1.5rem 1rem 0.5rem;
+        }
+
+        .logo {
+            max-width: 180px;
+            margin-bottom: 0.5rem;
+        }
+
+        .tagline {
+            font-size: 0.9rem;
+            color: #6c757d;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-login {
+            background: linear-gradient(45deg, #af0000d8, #000958);
+            border: none;
+            transition: 0.3s;
+        }
+
+        .btn-login:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .form-floating>label {
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card">
+                    <div class="card-header">
+                        <!-- Your Logo Image -->
+                        <img src="{% static 'images/logo.png' %}" alt="SmartShelf Logo" class="logo">
+                        <div class="tagline">AI-POWERED RETAIL DISPLAYS</div>
+                    </div>
+                    
+                    <div class="card-body p-4">
+                        <div class="card-body p-4">
+                        {% if error %}
+                            <div class="alert alert-danger" role="alert">
+                                {{ error }}
+                            </div>
+                        {% endif %}
+
+                        <form method="post" action="{% url 'staff_login' %}">
+                            {% csrf_token %}                        
+                            <div class="form-floating mb-3">
+                                <input type="text" name="username" class="form-control" id="username"
+                                    placeholder="Username" required autofocus>
+                                <label for="username">Username</label>
+                            </div>
+
+                            <div class="form-floating mb-4">
+                                <input type="password" name="password" class="form-control" id="password"
+                                    placeholder="Password" required>
+                                <label for="password">Password</label>
+                            </div>
+
+                            <button type="submit" class="btn btn-login btn-primary w-100 py-2">Sign In</button>
+
+                            <input type="hidden" name="next" value="{{ next }}">
+                        </form>
+                    </div>
+                    <div class="card-footer text-center bg-transparent border-0 pb-4">
+                        <small class="text-muted">SmartShelf &copy; 2026</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle (optional, but needed for interactive components) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
