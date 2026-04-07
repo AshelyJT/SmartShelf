@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-r!@vyoc^gqe5=(7vx!0cuzdh^hs%-c@ycgpk#a&98$ua7iw3q8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -134,4 +134,5 @@ STATICFILES_DIRS = (
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = 'staff_login'
-LOGIN_REDIRECT_URL = 'staff_dashboard'              
+LOGIN_REDIRECT_URL = 'staff_dashboard'
+CHECKOUT_LOGIN_REDIRECT_URL = 'checkout_home'

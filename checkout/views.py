@@ -1,16 +1,41 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 import datetime
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import authenticate, login, logout
+from django.urls import reverse_lazy, reverse
+from django.conf import settings
+import json
+from .models import Product, LiveTransaction
 
 # Create your views here.
 def home(request):
     return render(request, "landing_page.html")
 
+def checkout_login_view(request):
+    error_message = ""
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            if user.is_staff==False:
+                login(request, user)
+                next_url = (
+                    request.POST.get("next") or
+                    request.GET.get("next") or
+                    reverse(settings.CHECKOUT_LOGIN_REDIRECT_URL)
+                )
+                return redirect(next_url)
+            else:
+                error_message = "You do not have checkout privileges!"
+        else:
+            error_message = "Invalid username or password. Please try again."
+    return render(request, "checkout_login.html", {"error": error_message})
 
-from django.shortcuts import render
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-import json
-from .models import Product, LiveTransaction
+def checkout_logout_view(request):
+    logout(request)
+    return redirect(reverse('checkout_login'))
 
 def checkout(request):
     """Main till interface - shows 5 products"""

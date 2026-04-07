@@ -1,0 +1,35 @@
+<nav class="col-md-3 col-lg-2 d-md-block sidebar p-3">
+    <div class="position-sticky pt-3">
+        <h5 class="text-muted mb-4">SmartShelf</h5>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}"
+                    href="{% url 'staff_dashboard' %}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">
+                    <i class="bi bi-graph-up"></i> Reports
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">
+                    <i class="bi bi-calculator"></i> Pricing
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">
+                    <i class="bi bi-gear"></i> Settings
+                </a>
+            </li>
+        </ul>
+        <hr>
+        <form method="post" action="{% url 'staff_logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger w-100 mt-3">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </button>
+        </form>
+    </div>
+</nav>
