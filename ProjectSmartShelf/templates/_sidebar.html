@@ -1,10 +1,10 @@
-<nav class="col-md-3 col-lg-2 d-md-block sidebar p-3">
+<nav class="sidebar p-3">
     <div class="position-sticky pt-3">
         <h5 class="text-muted mb-4">SmartShelf</h5>
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}"
-                    href="{% url 'staff_dashboard' %}">
+                <a class="nav-link {% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}" 
+                   href="{% url 'staff_dashboard' %}">
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>

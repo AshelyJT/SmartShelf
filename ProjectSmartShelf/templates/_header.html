@@ -1,0 +1,10 @@
+<div class="sticky-header">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center py-3">
+        <h1 class="h2 mb-0">{% block page_title %}Dashboard{% endblock %}</h1>
+        <div class="btn-toolbar">
+            {% if user.is_authenticated %}
+                <span class="text-muted">Welcome, {{ user.username }}</span>
+            {% endif %}
+        </div>
+    </div>
+</div>

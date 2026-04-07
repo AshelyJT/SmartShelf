@@ -13,6 +13,7 @@
         font-weight: bold;
         color: #0d6efd;
     }
+
     .summary-result {
         margin-top: 1rem;
     }
@@ -21,49 +22,51 @@
 
 {% block content %}
 <!-- Stats Cards Row -->
-<div class="row g-4 mb-4">
-    <div class="col-sm-6 col-lg-3">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title text-muted">Active Day</h5>
-                <div class="value" id="current-day-display">{{ today|date:'Y-m-d' }}</div>
+<div class="dashboard-cards">
+    <div class="row g-4 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Active Day</h5>
+                    <div class="value" id="current-day-display">{{ today|date:'Y-m-d' }}</div>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title text-muted">Yesterday</h5>
-                <div class="value" id="yesterday-display">{{ yesterday|date:'Y-m-d' }}</div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Yesterday</h5>
+                    <div class="value" id="yesterday-display">{{ yesterday|date:'Y-m-d' }}</div>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title text-muted">Total Summary Records</h5>
-                <div class="value">{{ total_summaries }}</div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Total Summary Records</h5>
+                    <div class="value">{{ total_summaries }}</div>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title text-muted">Today's Date</h5>
-                <div class="value">{{ today }}</div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Today's Date</h5>
+                    <div class="value">{{ today }}</div>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title text-muted">Last Generated</h5>
-                <div class="value">
-                    {% if recent_summaries.0.date %}
+        <div class="col-sm-6 col-lg-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Last Generated</h5>
+                    <div class="value">
+                        {% if recent_summaries.0.date %}
                         {{ recent_summaries.0.date }}
-                    {% else %}
+                        {% else %}
                         Never
-                    {% endif %}
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -77,8 +80,7 @@
         <div class="row g-3 align-items-end">
             <div class="col-auto">
                 <label for="summary-date" class="form-label">Date:</label>
-                <input type="date" id="summary-date" class="form-control" 
-                       value="{{ yesterday|date:'Y-m-d' }}">
+                <input type="date" id="summary-date" class="form-control" value="{{ yesterday|date:'Y-m-d' }}">
             </div>
             <div class="col-auto">
                 <button onclick="generateSummary()" class="btn btn-primary">Generate Summary</button>
@@ -191,9 +193,9 @@
                         <td>${{ category.total_revenue|default:0 }}</td>
                         <td>
                             {% if category.total_units > 0 %}
-                                ${{ category.total_revenue|default:0|floatformat:2 }}
+                            ${{ category.total_revenue|default:0|floatformat:2 }}
                             {% else %}
-                                $0.00
+                            $0.00
                             {% endif %}
                         </td>
                     </tr>
@@ -240,26 +242,26 @@
             },
             body: JSON.stringify({ date: dateStr })
         })
-        .then(response => {
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                return response.text().then(text => {
-                    throw new Error(`Server returned non-JSON: ${text.substring(0, 200)}`);
-                });
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.message}</div>`;
-                setTimeout(() => window.location.reload(), 2000);
-            } else {
-                resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.error}</div>`;
-            }
-        })
-        .catch(error => {
-            resultDiv.innerHTML = `<div class="alert alert-danger">❌ Network error: ${error.message}</div>`;
-        });
+            .then(response => {
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    return response.text().then(text => {
+                        throw new Error(`Server returned non-JSON: ${text.substring(0, 200)}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.message}</div>`;
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<div class="alert alert-danger">❌ Network error: ${error.message}</div>`;
+            });
     }
 
     function generateSummary() {
@@ -287,24 +289,24 @@
                 'X-CSRFToken': getCSRFToken()
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.message}</div>`;
-                // Update displayed dates
-                document.getElementById('current-day-display').textContent = data.next_date;
-                const nextDate = new Date(data.next_date);
-                nextDate.setDate(nextDate.getDate() - 1);
-                const yesterdayStr = nextDate.toISOString().split('T')[0];
-                document.getElementById('yesterday-display').textContent = yesterdayStr;
-                setTimeout(() => window.location.reload(), 2000);
-            } else {
-                resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.error}</div>`;
-            }
-        })
-        .catch(error => {
-            resultDiv.innerHTML = `<div class="alert alert-danger">❌ Network error: ${error.message}</div>`;
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.message}</div>`;
+                    // Update displayed dates
+                    document.getElementById('current-day-display').textContent = data.next_date;
+                    const nextDate = new Date(data.next_date);
+                    nextDate.setDate(nextDate.getDate() - 1);
+                    const yesterdayStr = nextDate.toISOString().split('T')[0];
+                    document.getElementById('yesterday-display').textContent = yesterdayStr;
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.error}</div>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<div class="alert alert-danger">❌ Network error: ${error.message}</div>`;
+            });
     }
 
     function resetSimulatedDate() {
