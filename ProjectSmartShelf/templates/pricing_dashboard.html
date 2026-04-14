@@ -1,97 +1,130 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>AI Pricing Dashboard</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; }
-       
-        /* Status Colors */
-        .trend-up { color: #28a745; font-weight: bold; background-color: #e6ffec; padding: 4px 8px; border-radius: 4px; }
-        .trend-down { color: #dc3545; font-weight: bold; background-color: #ffe6e6; padding: 4px 8px; border-radius: 4px; }
-        .trend-flat { color: #6c757d; font-weight: bold; background-color: #f8f9fa; padding: 4px 8px; border-radius: 4px; }
+{% extends "base.html" %}
+{% load static %}
 
-        /* Table Styling */
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        th, td { padding: 12px 15px; border-bottom: 1px solid #ddd; text-align: left; }
-        th { background-color: #343a40; color: white; }
-        tr:hover { background-color: #f1f1f1; }
+{% block title %}AI Pricing Dashboard{% endblock %}
 
-        /* Button Styling */
-        .btn-apply {
-            background-color: #007bff; color: white; padding: 12px 24px;
-            font-size: 16px; border: none; cursor: pointer; border-radius: 5px;
-            transition: background 0.3s;
-        }
-        .btn-apply:hover { background-color: #0056b3; }
-       
-        .alert { padding: 15px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; margin-bottom: 20px; border-radius: 5px;}
-    </style>
-</head>
-<body>
+{% block page_title %}💰 AI Pricing Recommendations{% endblock %}
 
-    <h1>Daily Pricing Recommendations</h1>
-    <p>Review the AI-suggested price changes based on sales velocity and expiration dates.</p>
-   
-    <h2>Current date: {{ current_date|date:"F j, Y" }}</h2>
+{% block extra_css %}
+<style>
+    /* Force dark background for main content */
+    .main-content {
+        background-color: #0f0f1a !important;
+    }
+    .lead, .text-muted {
+        color: #cdd9ed !important;
+    }
+    .card {
+        background-color: #1e1e2f !important;
+        border: 1px solid #2d2d3a !important;
+    }
+    .table, .table tbody, .table tr, .table td, .table th {
+        background-color: #1e1e2f !important;
+        color: #cdd9ed !important;
+    }
+    .table thead th {
+        background-color: #2d2d3a !important;
+        color: #ffffff !important;
+    }
+    .table tbody tr:hover {
+        background-color: #2d2d3a !important;
+    }
 
-    {% if messages %}
-    <ul class="messages">
-        {% for message in messages %}
-            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
+    /* Trend badges - solid background with white text */
+    .trend-up {
+        background-color: #2ea043 !important;  /* green */
+        color: #ffffff !important;
+        padding: 4px 12px;
+        border-radius: 20px;
+        display: inline-block;
+        font-weight: 600;
+    }
+    .trend-down {
+        background-color: #f85149 !important;  /* red */
+        color: #ffffff !important;
+        padding: 4px 12px;
+        border-radius: 20px;
+        display: inline-block;
+        font-weight: 600;
+    }
+    .trend-flat {
+        background-color: #6e7681 !important;  /* grey */
+        color: #ffffff !important;
+        padding: 4px 12px;
+        border-radius: 20px;
+        display: inline-block;
+        font-weight: 600;
+    }
 
-    <form method="POST">
-        {% csrf_token %}
-        <button type="submit" name="apply_all" class="btn-apply">
-            Apply All AI Recommendations
-        </button>
-    </form>
+    .expiry-soon { color: #ff7b72; }
+    .expiry-expired { color: #f85149; }
+    .expiry-normal { color: #7ee787; }
+</style>
+{% endblock %}
 
-    <table>
-        <thead>
-            <tr>
-                <th>Product</th>
-                <th>Category</th>
-                <th>Current Price</th>
-                <th>Expiry Date</th>
-                <th>Days Until Expiry</th>
-                <th>AI Recommended Price</th>
-                <th>Trend</th>
-                <th>Action</th>   <!-- new column -->
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in report_data %}
-            <tr class="{{ item.css_class }}">
-                <td>{{ item.product.name }}</td>
-                <td>{{ item.product.category }}</td>
-                <td>${{ item.current_price }}</td>
-                <td>{{ item.product.expiry_date|date:"F j, Y" }}</td>
-                <td>
-                    {% if item.days_until_expiry < 0 %}
-                        <span style="color: darkred;">Expired ({{ item.days_until_expiry }} days)</span>
-                    {% elif item.days_until_expiry <= 7 %}
-                        <span style="color: orange;">{{ item.days_until_expiry }} days</span>
-                    {% else %}
-                        {{ item.days_until_expiry }} days
-                    {% endif %}
-                </td>
-                <td>${{ item.ai_price }}</td>
-                <td>{{ item.icon }} {{ item.status }}</td>
-                <td>
-                    <form method="post" action="{% url 'apply_single_price' %}" style="display:inline;">
-                        {% csrf_token %}
-                        <input type="hidden" name="product_id" value="{{ item.product.id }}">
-                        <input type="hidden" name="new_price" value="{{ item.ai_price }}">
-                        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</body>
-</html>
+{% block content %}
+<div class="mb-4">
+    <p class="lead">Review the AI-suggested price changes based on sales velocity and expiration dates.</p>
+    <h5 class="text-muted">Current date: {{ current_date|date:"F j, Y" }}</h5>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+            <button type="submit" name="apply_all" class="btn btn-primary">Apply All AI Recommendations</button>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Product</th><th>Category</th><th>Current Price</th><th>Expiry Date</th>
+                        <!-- Available Stock -->
+                        <th>Available Stock</th>
+                        <th>Days Until Expiry</th><th>AI Recommended Price</th><th>Trend</th><th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in report_data %}
+                    <tr>
+                        <td>{{ item.product.name }}</td><td>{{ item.product.category }}</td>
+                        <td>${{ item.current_price|floatformat:2 }}</td><td>{{ item.product.expiry_date|date:"F j, Y" }}</td>
+                        <td>{{ item.product.inventory_level }}</td>
+                        <td>
+                            {% if item.days_until_expiry < 0 %}
+                                <span class="expiry-expired">Expired ({{ item.days_until_expiry }} days)</span>
+                            {% elif item.days_until_expiry <= 7 %}
+                                <span class="expiry-soon">{{ item.days_until_expiry }} days</span>
+                            {% else %}
+                                <span class="expiry-normal">{{ item.days_until_expiry }} days</span>
+                            {% endif %}
+                         </td>
+                        <td>${{ item.ai_price|floatformat:2 }}</td>
+                        <td><span class="{{ item.css_class }}">{{ item.icon|default:'' }} {{ item.status|default:'' }}</span></td>
+                        <td>
+                            <form method="post" action="{% url 'apply_single_price' %}" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ item.product.id }}">
+                                <input type="hidden" name="new_price" value="{{ item.ai_price }}">
+                                <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                            </form>
+                         </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -16,4 +16,6 @@ urlpatterns = [
     path("pricing-dashboard/", views.pricing_dashboard, name="pricing_dashboard"),
     path("api/close-day-advance/", views.close_day_advance, name="close_day_advance"),
     path("apply-single-price/", views.apply_single_price, name="apply_single_price"),
+    path("predict_tomorrow_price/", views.predict_tomorrow_price, name="predict_tomorrow_price"),
+    path("recommendations/", views.recommendations_page, name="recommendations"),
 ]

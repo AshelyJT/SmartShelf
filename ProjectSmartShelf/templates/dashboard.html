@@ -7,66 +7,223 @@
 
 {% block extra_css %}
 <style>
-    /* Custom styles for stat card values */
-    .stat-card .value {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #0d6efd;
+    /* Dark theme overrides for main content */
+    .main-content {
+        background-color: #0f0f1a;
     }
 
-    .summary-result {
+    /* Stat cards - dark version */
+    .stat-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+        border-radius: 1rem;
+        background: linear-gradient(135deg, #1e1e2f 0%, #181826 100%);
+        color: #e9ecef;
+    }
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 1rem 2rem rgba(0,0,0,0.3) !important;
+    }
+    .stat-card .card-title {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #adbac7;
+        margin-bottom: 0.75rem;
+    }
+    .stat-card .value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #0d6efd;
+        line-height: 1.2;
+    }
+
+    /* Generic cards dark */
+    .card {
+        background-color: #1e1e2f;
+        border: 1px solid #2d2d3a;
+        border-radius: 1rem;
+        transition: box-shadow 0.2s;
+        color: #e9ecef;
+    }
+    .card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.2) !important;
+    }
+    .card-title {
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #ffffff;
+        border-left: 4px solid #0d6efd;
+        padding-left: 0.75rem;
+    }
+    .card-body {
+        color: #cdd9ed;
+    }
+
+    /* ----- Dark Tables (override Bootstrap) ----- */
+    .table,
+    .table tbody,
+    .table tr,
+    .table td,
+    .table th {
+        background-color: #1e1e2f !important;
+        color: #cdd9ed !important;
+    }
+    .table thead th {
+        background-color: #2d2d3a !important;
+        border-bottom: 2px solid #3d3d4a !important;
+        color: #ffffff !important;
+    }
+    .table tbody tr {
+        border-bottom: 1px solid #2d2d3a !important;
+    }
+    .table tbody tr:hover {
+        background-color: #2d2d3a !important;
+    }
+    .table tbody tr:hover td {
+        background-color: #2d2d3a !important;
+    }
+    /* Striped rows */
+    .table-striped tbody tr:nth-of-type(odd) {
+        background-color: #181826 !important;
+    }
+    .table-striped tbody tr:nth-of-type(odd) td {
+        background-color: #181826 !important;
+    }
+    /* Table responsive container */
+    .table-responsive {
+        background-color: #1e1e2f;
+        border-radius: 0.5rem;
+    }
+
+    /* Buttons */
+    .btn {
+        border-radius: 0.5rem;
+        font-weight: 500;
+        padding: 0.5rem 1.25rem;
+        transition: all 0.2s;
+    }
+    .btn-primary {
+        background: linear-gradient(45deg, #0d6efd, #0b5ed7);
+        border: none;
+    }
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(13,110,253,0.4);
+    }
+    .btn-success {
+        background: linear-gradient(45deg, #198754, #157347);
+        border: none;
+    }
+    .btn-success:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(25,135,84,0.4);
+    }
+    .btn-secondary {
+        background: #495057;
+        border: none;
+    }
+    .btn-secondary:hover {
+        background: #5c636a;
+        transform: translateY(-1px);
+    }
+
+    /* Form controls dark */
+    .form-control, .form-select {
+        background-color: #2d2d3a;
+        border-color: #3d3d4a;
+        color: #e9ecef;
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: #2d2d3a;
+        border-color: #0d6efd;
+        color: #e9ecef;
+        box-shadow: 0 0 0 0.25rem rgba(13,110,253,0.25);
+    }
+    .form-label {
+        color: #adbac7;
+    }
+
+    /* Alert dark */
+    .alert-info {
+        background-color: #1e3a5f;
+        border-color: #2d4a6f;
+        color: #cfe2ff;
+    }
+    .alert-success {
+        background-color: #1a3b2c;
+        border-color: #2a4a3c;
+        color: #d1e7dd;
+    }
+    .alert-danger {
+        background-color: #3b1e2a;
+        border-color: #4a2a35;
+        color: #f8d7da;
+    }
+
+    /* Summary result */
+    .summary-result .alert {
+        border-radius: 0.75rem;
         margin-top: 1rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .stat-card .value {
+            font-size: 1.5rem;
+        }
+        .btn {
+            padding: 0.4rem 1rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <!-- Stats Cards Row -->
-<div class="dashboard-cards">
-    <div class="row g-4 mb-4">
-        <div class="col-sm-6 col-lg-3">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Active Day</h5>
-                    <div class="value" id="current-day-display">{{ today|date:'Y-m-d' }}</div>
-                </div>
+<div class="row g-4 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card stat-card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Active Day</h5>
+                <div class="value" id="current-day-display">{{ today|date:'Y-m-d' }}</div>
             </div>
         </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Yesterday</h5>
-                    <div class="value" id="yesterday-display">{{ yesterday|date:'Y-m-d' }}</div>
-                </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card stat-card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Yesterday</h5>
+                <div class="value" id="yesterday-display">{{ yesterday|date:'Y-m-d' }}</div>
             </div>
         </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Total Summary Records</h5>
-                    <div class="value">{{ total_summaries }}</div>
-                </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card stat-card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Total Summary Records</h5>
+                <div class="value">{{ total_summaries }}</div>
             </div>
         </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Today's Date</h5>
-                    <div class="value">{{ today }}</div>
-                </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card stat-card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Today's Date</h5>
+                <div class="value">{{ today }}</div>
             </div>
         </div>
-        <div class="col-sm-6 col-lg-3">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title text-muted">Last Generated</h5>
-                    <div class="value">
-                        {% if recent_summaries.0.date %}
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card stat-card h-100 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Last Generated</h5>
+                <div class="value">
+                    {% if recent_summaries.0.date %}
                         {{ recent_summaries.0.date }}
-                        {% else %}
+                    {% else %}
                         Never
-                        {% endif %}
-                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -76,10 +233,10 @@
 <!-- Controls Section -->
 <div class="card shadow-sm mb-4">
     <div class="card-body">
-        <h5 class="card-title mb-3">Generate Daily Summary</h5>
+        <h5 class="card-title">Generate Daily Summary</h5>
         <div class="row g-3 align-items-end">
             <div class="col-auto">
-                <label for="summary-date" class="form-label">Date:</label>
+                <label for="summary-date" class="form-label fw-semibold">Date:</label>
                 <input type="date" id="summary-date" class="form-control" value="{{ yesterday|date:'Y-m-d' }}">
             </div>
             <div class="col-auto">
@@ -103,7 +260,7 @@
             <div class="card-body">
                 <h5 class="card-title">Recent Daily Summaries</h5>
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
+                    <table class="table table-hover align-middle">
                         <thead>
                             <tr>
                                 <th>Date</th>
@@ -124,7 +281,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="text-center py-4">No daily summaries generated yet.</td>
+                                <td colspan="5" class="text-center py-4 text-muted">No daily summaries generated yet.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -138,7 +295,7 @@
             <div class="card-body">
                 <h5 class="card-title">Top Products (Yesterday)</h5>
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
+                    <table class="table table-hover align-middle">
                         <thead>
                             <tr>
                                 <th>Product</th>
@@ -159,7 +316,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="text-center py-4">No data for yesterday.</td>
+                                <td colspan="5" class="text-center py-4 text-muted">No data for yesterday.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -176,7 +333,7 @@
     <div class="card-body">
         <h5 class="card-title">Categories Performance (Yesterday)</h5>
         <div class="table-responsive">
-            <table class="table table-striped table-hover">
+            <table class="table table-hover align-middle">
                 <thead>
                     <tr>
                         <th>Category</th>
@@ -193,9 +350,9 @@
                         <td>${{ category.total_revenue|default:0 }}</td>
                         <td>
                             {% if category.total_units > 0 %}
-                            ${{ category.total_revenue|default:0|floatformat:2 }}
+                                ${{ category.total_revenue|default:0|floatformat:2 }}
                             {% else %}
-                            $0.00
+                                $0.00
                             {% endif %}
                         </td>
                     </tr>
@@ -242,26 +399,26 @@
             },
             body: JSON.stringify({ date: dateStr })
         })
-            .then(response => {
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    return response.text().then(text => {
-                        throw new Error(`Server returned non-JSON: ${text.substring(0, 200)}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.message}</div>`;
-                    setTimeout(() => window.location.reload(), 2000);
-                } else {
-                    resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.error}</div>`;
-                }
-            })
-            .catch(error => {
-                resultDiv.innerHTML = `<div class="alert alert-danger">❌ Network error: ${error.message}</div>`;
-            });
+        .then(response => {
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                return response.text().then(text => {
+                    throw new Error(`Server returned non-JSON: ${text.substring(0, 200)}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.message}</div>`;
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `<div class="alert alert-danger">❌ Network error: ${error.message}</div>`;
+        });
     }
 
     function generateSummary() {
@@ -289,24 +446,23 @@
                 'X-CSRFToken': getCSRFToken()
             }
         })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.message}</div>`;
-                    // Update displayed dates
-                    document.getElementById('current-day-display').textContent = data.next_date;
-                    const nextDate = new Date(data.next_date);
-                    nextDate.setDate(nextDate.getDate() - 1);
-                    const yesterdayStr = nextDate.toISOString().split('T')[0];
-                    document.getElementById('yesterday-display').textContent = yesterdayStr;
-                    setTimeout(() => window.location.reload(), 2000);
-                } else {
-                    resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.error}</div>`;
-                }
-            })
-            .catch(error => {
-                resultDiv.innerHTML = `<div class="alert alert-danger">❌ Network error: ${error.message}</div>`;
-            });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.message}</div>`;
+                document.getElementById('current-day-display').textContent = data.next_date;
+                const nextDate = new Date(data.next_date);
+                nextDate.setDate(nextDate.getDate() - 1);
+                const yesterdayStr = nextDate.toISOString().split('T')[0];
+                document.getElementById('yesterday-display').textContent = yesterdayStr;
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `<div class="alert alert-danger">❌ Network error: ${error.message}</div>`;
+        });
     }
 
     function resetSimulatedDate() {

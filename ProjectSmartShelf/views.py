@@ -11,6 +11,7 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy, reverse
 from django.conf import settings
+from django.db.models import Sum
 from checkout.models import Product
 from decimal import Decimal
 from .models import DailyProductSales
@@ -404,3 +405,90 @@ def apply_single_price(request):
             messages.error(request, f"Error: {e}")
         return redirect('pricing_dashboard')
     return redirect('pricing_dashboard')
+
+@staff_member_required(login_url='staff_login')
+def recommendations_page(request):
+    # Get simulated date (or real today)
+    simulated_today = getattr(request, 'simulated_date', None)
+    if simulated_today is None:
+        simulated_today = timezone.now().date()
+
+    # Run AI batch prediction (reuse existing function)
+    raw_results = predict_prices_batch(base_date=simulated_today)
+
+    recommendations = []
+    for product, raw_ai_price in raw_results:
+        current_price = product.price if product.price else Decimal('0.00')
+        ai_price = Decimal(str(raw_ai_price)).quantize(Decimal('0.01'))
+        expiry_date = product.expiry_date
+        days_until_expiry = None
+        if expiry_date:
+            days_until_expiry = (expiry_date - simulated_today).days
+
+        # Determine recommendation type
+        rec_type = None
+        reason = ""
+        urgency = "low"  # low, medium, high
+
+        # Price change recommendation
+        price_diff_pct = 0
+        if current_price > 0:
+            price_diff_pct = ((ai_price - current_price) / current_price) * 100
+
+        # Expiry-based recommendations
+        if days_until_expiry is not None and days_until_expiry <= 7:
+            if days_until_expiry <= 2:
+                urgency = "high"
+                rec_type = "clearance"
+                reason = f"Expires in {days_until_expiry} days – urgent markdown"
+            else:
+                urgency = "medium"
+                rec_type = "markdown"
+                reason = f"Expires in {days_until_expiry} days – suggest discount"
+        # Price increase if AI price > current by > 5%
+        elif ai_price > current_price and price_diff_pct > 5:
+            rec_type = "price_increase"
+            reason = f"AI suggests +{price_diff_pct:.0f}% price increase"
+            urgency = "medium"
+        # Price decrease if AI price < current by > 5%
+        elif ai_price < current_price and price_diff_pct < -5:
+            rec_type = "price_decrease"
+            reason = f"AI suggests {price_diff_pct:.0f}% price decrease"
+            urgency = "medium"
+        # Restock recommendation based on sales velocity (placeholder)
+        # For now, simple: if product has no sales in last 3 days? Use dummy logic.
+        # We'll add a simple check: if total units sold in recent summaries < 5, suggest restock.
+        else:
+            # Check sales volume from DailyProductSales (last 7 days)
+            from .models import DailyProductSales
+            recent_sales = DailyProductSales.objects.filter(
+                product_name=product.name,
+                date__gte=simulated_today - datetime.timedelta(days=7)
+            ).aggregate(total=Sum('units_sold'))['total'] or 0
+            if recent_sales < 5 and current_price > 0:
+                rec_type = "restock"
+                reason = f"Low sales velocity ({recent_sales} units in 7 days) – review stock"
+                urgency = "low"
+            else:
+                continue  # no recommendation
+
+        recommendations.append({
+            'product': product,
+            'current_price': current_price,
+            'ai_price': ai_price,
+            'days_until_expiry': days_until_expiry,
+            'rec_type': rec_type,
+            'reason': reason,
+            'urgency': urgency,
+        })
+
+    # Sort by urgency: high -> medium -> low
+    urgency_order = {'high': 0, 'medium': 1, 'low': 2}
+    recommendations.sort(key=lambda x: urgency_order.get(x['urgency'], 3))
+
+    context = {
+        'recommendations': recommendations,
+        'current_date': simulated_today,
+    }
+    return render(request, 'recommendations.html', context)
+

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AI Recommendations{% endblock %}
+
+{% block page_title %}💡 Smart Recommendations{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Force dark background for the entire main content area */
+    .main-content {
+        background-color: #0f0f1a !important;
+    }
+    .lead, .text-muted {
+        color: #cdd9ed !important;
+    }
+    /* Cards dark */
+    .card, .card-body {
+        background-color: #1e1e2f !important;
+        border-color: #2d2d3a !important;
+    }
+    .card-title {
+        color: #ffffff !important;
+        border-left: 4px solid #0d6efd !important;
+        padding-left: 0.75rem;
+    }
+    /* Force table and all its children to be dark */
+    .table,
+    .table tbody,
+    .table tr,
+    .table td,
+    .table th,
+    .table thead,
+    .table tfoot {
+        background-color: #1e1e2f !important;
+        color: #cdd9ed !important;
+    }
+    .table thead th {
+        background-color: #2d2d3a !important;
+        color: #ffffff !important;
+        border-bottom: 2px solid #3d3d4a !important;
+    }
+    .table tbody tr {
+        border-bottom: 1px solid #2d2d3a !important;
+    }
+    .table tbody tr:hover {
+        background-color: #2d2d3a !important;
+    }
+    .table tbody tr:hover td {
+        background-color: #2d2d3a !important;
+    }
+    /* Urgency badges */
+    .urgency-high {
+        background-color: #f85149;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+    .urgency-medium {
+        background-color: #d29922;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+    .urgency-low {
+        background-color: #6e7681;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+    .rec-type {
+        font-weight: 600;
+    }
+    .expiry-expired {
+        color: #f85149;
+        font-weight: 600;
+    }
+    /* Override any Bootstrap button styles on dark background */
+    .btn-primary {
+        background: linear-gradient(45deg, #0d6efd, #0b5ed7) !important;
+        border: none !important;
+    }
+    .btn-secondary {
+        background-color: #495057 !important;
+        border: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <p class="lead">Actionable recommendations to optimize pricing, inventory, and sales.</p>
+    <h5 class="text-muted">Current date: {{ current_date|date:"F j, Y" }}</h5>
+</div>
+
+{% if recommendations %}
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Current Price</th>
+                        <th>Days to Expiry</th>
+                        <th>Recommendation</th>
+                        <th>Reason</th>
+                        <th>Urgency</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rec in recommendations %}
+                    <tr>
+                        <td>{{ rec.product.name }}</td>
+                        <td>{{ rec.product.category }}</td>
+                        <td>${{ rec.current_price|floatformat:2 }}</td>
+                        <td>
+                            {% if rec.days_until_expiry %}
+                                {% if rec.days_until_expiry <= 0 %}
+                                    <span class="expiry-expired">Expired</span>
+                                {% else %}
+                                    {{ rec.days_until_expiry }} days
+                                {% endif %}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td class="rec-type">
+                            {% if rec.rec_type == 'price_increase' %}⬆️ Price Increase
+                            {% elif rec.rec_type == 'price_decrease' %}⬇️ Price Decrease
+                            {% elif rec.rec_type == 'clearance' %}🏷️ Clearance
+                            {% elif rec.rec_type == 'markdown' %}💰 Markdown
+                            {% elif rec.rec_type == 'restock' %}📦 Restock
+                            {% else %}{{ rec.rec_type }}
+                            {% endif %}
+                        </td>
+                        <td>{{ rec.reason }}</td>
+                        <td>
+                            <span class="urgency-{{ rec.urgency }}">
+                                {{ rec.urgency|upper }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if rec.rec_type == 'price_increase' or rec.rec_type == 'price_decrease' %}
+                            <form method="post" action="{% url 'apply_single_price' %}" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ rec.product.id }}">
+                                <input type="hidden" name="new_price" value="{{ rec.ai_price }}">
+                                <button type="submit" class="btn btn-primary btn-sm">Apply Price</button>
+                            </form>
+                            {% else %}
+                            <button class="btn btn-secondary btn-sm" disabled>Manual Review</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-check-circle" style="font-size: 3rem; color: #2ea043;"></i>
+        <h4 class="mt-3">All good!</h4>
+        <p class="text-muted">No actionable recommendations at the moment.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
