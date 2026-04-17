@@ -1,6 +1,12 @@
+{% load static %}
 <nav class="sidebar p-3 d-flex flex-column h-100">
+    <!-- Logo -->
+    <div class="mb-4 sidebar_logo">
+        <img src="{% static 'images/logo_transparent.png' %}" alt="SmartShelf Logo" class="logo">
+        <div class="tagline text-light">AI-POWERED RETAIL DISPLAYS</div>
+    </div>
+
     <div>
-        <h5 class="mb-5" style="color: #ffffff;"></h5>
         <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}" 
@@ -16,7 +22,19 @@
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'pricing_dashboard' %}active{% endif %}" 
                    href="{% url 'pricing_dashboard' %}">
-                    <i class="bi bi-calculator"></i> Pricing
+                    <i class="bi bi-robot"></i> AI Pricing
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'manual_pricing' %}active{% endif %}" 
+                href="{% url 'manual_pricing' %}">
+                    <i class="bi bi-calculator"></i> Manual Pricing
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'price_history' %}active{% endif %}" 
+                href="{% url 'price_history' %}">
+                    <i class="bi bi-clock-history"></i> Price History
                 </a>
             </li>
             <li class="nav-item">

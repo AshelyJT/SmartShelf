@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
 import datetime
 from decimal import Decimal
@@ -138,3 +139,18 @@ class ProductLCDMapping(models.Model):
 
     def __str__(self):
         return f"{self.product.name} -> {self.i2c_address}"
+
+
+class PriceHistory(models.Model):
+    """Model to track changes to product prices."""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_history')
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    changed_at = models.DateTimeField(auto_now_add=True)
+    old_price = models.DecimalField(max_digits=10, decimal_places=2)
+    new_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.product.name} - {self.changed_at.strftime('%Y-%m-%d %H:%M')} by {self.changed_by.username if self.changed_by else 'System'}"
+
+    class Meta:
+        ordering = ['-changed_at']  # Show newest changes first

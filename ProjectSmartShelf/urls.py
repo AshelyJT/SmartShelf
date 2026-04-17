@@ -1,5 +1,4 @@
 from django.urls import path
-from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
@@ -18,4 +17,7 @@ urlpatterns = [
     path("apply-single-price/", views.apply_single_price, name="apply_single_price"),
     path("predict_tomorrow_price/", views.predict_tomorrow_price, name="predict_tomorrow_price"),
     path("recommendations/", views.recommendations_page, name="recommendations"),
+    path("price-history/", views.price_history_view, name="price_history"),
+    path("price-history/export/", views.export_price_history_csv, name="export_price_history_csv"),
+    path("manual-pricing/", views.manual_pricing_view, name="manual_pricing"),
 ]

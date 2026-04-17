@@ -68,12 +68,6 @@
     <h5 class="text-muted">Current date: {{ current_date|date:"F j, Y" }}</h5>
 </div>
 
-{% if messages %}
-    {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-    {% endfor %}
-{% endif %}
-
 <div class="card shadow-sm mb-4">
     <div class="card-body">
         <form method="POST">

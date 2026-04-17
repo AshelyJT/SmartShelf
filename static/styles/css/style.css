@@ -35,6 +35,11 @@ body {
     box-shadow: 2px 0 5px rgba(0,0,0,0.2);
 }
 
+.sidebar img{
+    max-width: 100%;
+    height: auto;
+}
+
 .sidebar h5 {
     color: #adbac7;
     font-weight: 600;

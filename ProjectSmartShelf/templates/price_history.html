@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Price History{% endblock %}
+
+{% block page_title %}📜 Price History{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content { background-color: #0f0f1a !important; }
+    .lead, .text-muted { color: #cdd9ed !important; }
+    .card, .card-body { background-color: #1e1e2f !important; border-color: #2d2d3a !important; }
+    .card-title { color: #ffffff !important; border-left: 4px solid #0d6efd !important; padding-left: 0.75rem; }
+    .table, .table tbody, .table tr, .table td, .table th, .table thead, .table tfoot { background-color: #1e1e2f !important; color: #cdd9ed !important; }
+    .table thead th { background-color: #2d2d3a !important; color: #ffffff !important; border-bottom: 2px solid #3d3d4a !important; }
+    .table tbody tr { border-bottom: 1px solid #2d2d3a !important; }
+    .table tbody tr:hover { background-color: #2d2d3a !important; }
+    .pagination .page-link { background-color: #1e1e2f; border-color: #2d2d3a; color: #cdd9ed; }
+    .pagination .active .page-link { background-color: #0d6efd; border-color: #0d6efd; color: white; }
+    .search-box { background-color: #2d2d3a; border: 1px solid #3d3d4a; color: #e9ecef; }
+    .search-box:focus { background-color: #2d2d3a; border-color: #0d6efd; color: #e9ecef; box-shadow: 0 0 0 0.25rem rgba(13,110,253,0.25); }
+    .form-label {
+        color: #cdd9ed !important;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+    .form-control, .form-select {
+        background-color: #2d2d3a !important;
+        border: 1px solid #3d3d4a !important;
+        color: #e9ecef !important;
+        border-radius: 0.5rem;
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: #2d2d3a !important;
+        border-color: #0d6efd !important;
+        color: #e9ecef !important;
+        box-shadow: 0 0 0 0.25rem rgba(13,110,253,0.25);
+    }
+    .form-control::placeholder {
+        color: #8b949e !important;
+    }
+    /* Filter card background */
+    .card {
+        background-color: #1e1e2f !important;
+        border: 1px solid #2d2d3a !important;
+    }
+    .card-title {
+        color: #ffffff !important;
+    }
+    /* Adjust button styles for dark background (already in previous CSS, but ensure) */
+    .btn-secondary {
+        background-color: #495057 !important;
+        border: none !important;
+    }
+    .btn-secondary:hover {
+        background-color: #5c636a !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <p class="lead">Complete audit log of all price changes made by staff members.</p>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <form method="get" class="d-flex">
+                    <input type="text" name="search" class="form-control search-box me-2" placeholder="Search by product or staff..." value="{{ search_query }}">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Filter card -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Filter History</h5>
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="start_date" class="form-label">From Date</label>
+                        <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="end_date" class="form-label">To Date</label>
+                        <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="product_id" class="form-label">Product</label>
+                        <select name="product_id" id="product_id" class="form-select">
+                            <option value="">All Products</option>
+                            {% for product in products %}
+                                <option value="{{ product.id }}" {% if selected_product == product.id|stringformat:"s" %}selected{% endif %}>{{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="user_id" class="form-label">Staff Member</label>
+                        <select name="user_id" id="user_id" class="form-select">
+                            <option value="">All Staff</option>
+                            {% for user in staff_users %}
+                                <option value="{{ user.id }}" {% if selected_user == user.id|stringformat:"s" %}selected{% endif %}>{{ user.get_full_name|default:user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                        <a href="{% url 'price_history' %}" class="btn btn-secondary">Clear Filters</a>
+                        <div class="col-12 mt-3">
+                            <a href="{% url 'export_price_history_csv' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+                                <i class="bi bi-download"></i> Export to CSV
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Changed By</th>
+                        <th>Date & Time</th>
+                        <th>Old Price</th>
+                        <th>New Price</th>
+                        <th>Price Change</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for history in page_obj %}
+                    <tr>
+                        <td>{{ history.product.name }}</td>
+                        <td>{{ history.changed_by.get_full_name|default:"System" }}</td>
+                        <td>{{ history.changed_at|date:"Y-m-d H:i" }}</td>
+                        <td>${{ history.old_price|floatformat:2 }}</td>
+                        <td>${{ history.new_price|floatformat:2 }}</td>
+                        <td>
+                            {% with diff=history.price_diff %}
+                                <span class="{% if diff > 0 %}trend-up{% elif diff < 0 %}trend-down{% else %}trend-flat{% endif %}">
+                                    {% if diff > 0 %}+{% elif diff < 0 %}{% endif %}${{ diff|floatformat:2 }}
+                                </span>
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">No price changes recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}">« First</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Previous</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}">Last »</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

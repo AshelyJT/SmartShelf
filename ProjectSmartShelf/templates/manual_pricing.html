@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Manual Price Override{% endblock %}
+
+{% block page_title %}✏️ Manual Price Override{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content { background-color: #0f0f1a !important; }
+    .lead, .text-muted { color: #cdd9ed !important; }
+    .card, .card-body { background-color: #1e1e2f !important; border-color: #2d2d3a !important; }
+    .card-title { color: #ffffff !important; border-left: 4px solid #0d6efd !important; padding-left: 0.75rem; }
+    .table, .table tbody, .table tr, .table td, .table th, .table thead { background-color: #1e1e2f !important; color: #cdd9ed !important; }
+    .table thead th { background-color: #2d2d3a !important; color: #ffffff !important; border-bottom: 2px solid #3d3d4a !important; }
+    .table tbody tr { border-bottom: 1px solid #2d2d3a !important; }
+    .table tbody tr:hover { background-color: #2d2d3a !important; }
+    .form-control, .form-select {
+        background-color: #2d2d3a !important;
+        border: 1px solid #3d3d4a !important;
+        color: #e9ecef !important;
+        border-radius: 0.5rem;
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: #2d2d3a !important;
+        border-color: #0d6efd !important;
+        color: #e9ecef !important;
+        box-shadow: 0 0 0 0.25rem rgba(13,110,253,0.25);
+    }
+    /* Make input text and placeholder visible */
+    .form-control, .form-select {
+        background-color: #2d2d3a !important;
+        border: 1px solid #3d3d4a !important;
+        color: #ffffff !important;  /* white text for entered content */
+    }
+    .form-control::placeholder {
+        color: #adbac7 !important;  /* light grey for placeholder */
+        opacity: 1;  /* ensure full color */
+    }
+    .form-control:focus, .form-select:focus {
+        background-color: #2d2d3a !important;
+        color: #ffffff !important;
+        border-color: #0d6efd !important;
+    }
+    /* Also target number input specifically */
+    input[type="number"].form-control {
+        color: #ffffff !important;
+    }
+    .form-label { color: #cdd9ed !important; }
+    .btn-sm { padding: 0.25rem 0.75rem; }
+    .alert {
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .alert-success { background-color: #1a3b2c; color: #d1e7dd; border-color: #2a4a3c; }
+    .alert-danger { background-color: #3b1e2a; color: #f8d7da; border-color: #4a2a35; }
+    .alert-info { background-color: #1e3a5f; color: #cfe2ff; border-color: #2d4a6f; }
+    .alert-warning { background-color: #3b3a1e; color: #fff3cd; border-color: #4a4a2a; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Bulk Discount Card -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Bulk Discount by Category</h5>
+        <form method="post" class="row g-3 align-items-end">
+            {% csrf_token %}
+            <div class="col-md-4">
+                <label for="bulk_category" class="form-label">Category</label>
+                <select name="bulk_category" id="bulk_category" class="form-select" required>
+                    <option value="">Select category...</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="discount_type" class="form-label">Discount Type</label>
+                <select name="discount_type" id="discount_type" class="form-select" required>
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed Amount ($)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="discount_value" class="form-label">Value</label>
+                <input type="number" step="0.01" name="discount_value" id="discount_value" class="form-control" placeholder="e.g., 10 for 10%" required>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Apply Bulk Discount</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Filters and Product Table -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <form method="get" class="d-flex">
+                    <input type="text" name="search" class="form-control me-2" placeholder="Search product..." value="{{ search_query }}">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </form>
+            </div>
+            <div class="col-md-4">
+                <form method="get" class="d-flex">
+                    <select name="category" class="form-select me-2">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat }}" {% if category_filter == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-secondary">Filter</button>
+                </form>
+            </div>
+            <div class="col-md-2 text-end">
+                <a href="{% url 'manual_pricing' %}" class="btn btn-secondary">Clear</a>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Current Price</th>
+                        <th>New Price</th>
+                        <th>Discount %</th>
+                        <th>Discount $</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.category }}</td>
+                        <td>${{ product.price|floatformat:2 }}</td>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <td><input type="number" step="0.01" name="new_price" class="form-control form-control-sm" placeholder="New price"></td>
+                            <td><input type="number" step="0.1" name="discount_percent" class="form-control form-control-sm" placeholder="% off"></td>
+                            <td><input type="number" step="0.01" name="discount_fixed" class="form-control form-control-sm" placeholder="$ off"></td>
+                            <td><button type="submit" class="btn btn-primary btn-sm">Update</button></td>
+                        </form>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">No products found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

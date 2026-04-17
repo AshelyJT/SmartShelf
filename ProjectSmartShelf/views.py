@@ -1,22 +1,24 @@
+import csv
 import datetime
 import json
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.utils import timezone
-from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.views import LoginView, LogoutView
-from django.contrib.auth.decorators import login_required
-from django.urls import reverse_lazy, reverse
+from django.contrib.auth.models import User
 from django.conf import settings
-from django.db.models import Sum
+from django.core.paginator import Paginator
+from django.db.models import Sum, Q
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from checkout.models import Product
 from decimal import Decimal
-from .models import DailyProductSales
+from .models import DailyProductSales, PriceHistory
 from .apps import ProjectsmartshelfConfig
 from .ml_models.utils import prepare_input_for_tomorrow, predict_prices_batch
+
 
 def login_view(request):
     error_message = ""
@@ -326,7 +328,15 @@ def pricing_dashboard(request):
         for item in final_report:
             product = item['product']
             new_price = item['ai_price']
-            if new_price != product.price:
+            old_price = product.price
+            if new_price != old_price:
+                # Log the change before updating
+                PriceHistory.objects.create(
+                    product=product,
+                    changed_by=request.user,
+                    old_price=old_price,
+                    new_price=new_price
+                )
                 product.price = new_price
                 product.save()
                 update_count += 1
@@ -394,6 +404,14 @@ def apply_single_price(request):
             product = Product.objects.get(id=product_id)
             new_price_decimal = Decimal(new_price).quantize(Decimal('0.01'))
             if product.price != new_price_decimal:
+                # --- History logging start ---
+                PriceHistory.objects.create(
+                    product=product,
+                    changed_by=request.user,
+                    old_price=product.price,
+                    new_price=new_price_decimal
+                )
+                # --- History logging end ---
                 product.price = new_price_decimal
                 product.save()
                 messages.success(request, f"Price updated for {product.name}.")
@@ -491,4 +509,226 @@ def recommendations_page(request):
         'current_date': simulated_today,
     }
     return render(request, 'recommendations.html', context)
+
+
+@staff_member_required(login_url='staff_login')
+def price_history_view(request):
+    history_list = PriceHistory.objects.select_related('product', 'changed_by').all()
+
+    # Search query (text search on product name or username)
+    search_query = request.GET.get('search', '')
+    if search_query:
+        history_list = history_list.filter(
+            Q(product__name__icontains=search_query) |
+            Q(changed_by__username__icontains=search_query)
+        )
+
+    # Advanced filters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    product_id = request.GET.get('product_id')
+    user_id = request.GET.get('user_id')
+
+    if start_date:
+        start_date_obj = parse_date(start_date)
+        if start_date_obj:
+            history_list = history_list.filter(changed_at__date__gte=start_date_obj)
+    if end_date:
+        end_date_obj = parse_date(end_date)
+        if end_date_obj:
+            history_list = history_list.filter(changed_at__date__lte=end_date_obj)
+    if product_id:
+        history_list = history_list.filter(product_id=product_id)
+    if user_id:
+        history_list = history_list.filter(changed_by_id=user_id)
+
+    # Pagination
+    paginator = Paginator(history_list, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Add price difference
+    for history in page_obj:
+        history.price_diff = history.new_price - history.old_price
+
+    # Get lists for filter dropdowns
+    products = Product.objects.all().order_by('name')
+    staff_users = User.objects.filter(is_staff=True).order_by('username')
+
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'start_date': start_date,
+        'end_date': end_date,
+        'selected_product': product_id,
+        'selected_user': user_id,
+        'products': products,
+        'staff_users': staff_users,
+    }
+    return render(request, 'price_history.html', context)
+
+
+@staff_member_required(login_url='staff_login')
+def export_price_history_csv(request):
+    # Apply same filters as the main view (duplicate logic)
+    history_list = PriceHistory.objects.select_related('product', 'changed_by').all()
+
+    search_query = request.GET.get('search', '')
+    if search_query:
+        history_list = history_list.filter(
+            Q(product__name__icontains=search_query) |
+            Q(changed_by__username__icontains=search_query)
+        )
+
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    product_id = request.GET.get('product_id')
+    user_id = request.GET.get('user_id')
+
+    if start_date:
+        start_date_obj = parse_date(start_date)
+        if start_date_obj:
+            history_list = history_list.filter(changed_at__date__gte=start_date_obj)
+    if end_date:
+        end_date_obj = parse_date(end_date)
+        if end_date_obj:
+            history_list = history_list.filter(changed_at__date__lte=end_date_obj)
+    if product_id:
+        history_list = history_list.filter(product_id=product_id)
+    if user_id:
+        history_list = history_list.filter(changed_by_id=user_id)
+
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="price_history.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['Product', 'Changed By', 'Date & Time', 'Old Price', 'New Price', 'Price Change'])
+
+    for history in history_list.order_by('-changed_at'):
+        diff = history.new_price - history.old_price
+        writer.writerow([
+            history.product.name,
+            history.changed_by.get_full_name() if history.changed_by else 'System',
+            history.changed_at.strftime('%Y-%m-%d %H:%M:%S'),
+            f"${history.old_price:.2f}",
+            f"${history.new_price:.2f}",
+            f"{'+' if diff > 0 else ''}{diff:.2f}"
+        ])
+
+    return response
+
+
+@staff_member_required(login_url='staff_login')
+def manual_pricing_view(request):
+    products = Product.objects.all().order_by('name')
+    search_query = request.GET.get('search', '')
+    category_filter = request.GET.get('category', '')
+
+    if search_query:
+        products = products.filter(name__icontains=search_query)
+    if category_filter:
+        products = products.filter(category=category_filter)
+
+    # Get unique categories for filter dropdown
+    categories = Product.objects.values_list('category', flat=True).distinct().order_by('category')
+
+    # Handle single product price override (via POST from the table)
+    if request.method == 'POST' and 'product_id' in request.POST:
+        product_id = request.POST.get('product_id')
+        try:
+            product = Product.objects.get(id=product_id)
+            old_price = product.price
+
+            new_price_raw = request.POST.get('new_price', '').strip()
+            discount_percent_raw = request.POST.get('discount_percent', '').strip()
+            discount_fixed_raw = request.POST.get('discount_fixed', '').strip()
+
+            new_price_decimal = None
+
+            # Priority: new_price > discount_percent > discount_fixed
+            if new_price_raw:
+                try:
+                    new_price_decimal = Decimal(new_price_raw).quantize(Decimal('0.01'))
+                except:
+                    messages.error(request, f"Invalid new price format: {new_price_raw}")
+                    return redirect('manual_pricing')
+            elif discount_percent_raw:
+                try:
+                    percent = Decimal(discount_percent_raw)
+                    new_price_decimal = old_price * (1 - percent / 100)
+                    new_price_decimal = new_price_decimal.quantize(Decimal('0.01'))
+                except:
+                    messages.error(request, f"Invalid discount percentage: {discount_percent_raw}")
+                    return redirect('manual_pricing')
+            elif discount_fixed_raw:
+                try:
+                    fixed = Decimal(discount_fixed_raw)
+                    new_price_decimal = old_price - fixed
+                    new_price_decimal = max(new_price_decimal, Decimal('0.00')).quantize(Decimal('0.01'))
+                except:
+                    messages.error(request, f"Invalid fixed discount amount: {discount_fixed_raw}")
+                    return redirect('manual_pricing')
+            else:
+                messages.error(request, "No valid price change provided.")
+                return redirect('manual_pricing')
+
+            if old_price != new_price_decimal:
+                PriceHistory.objects.create(
+                    product=product,
+                    changed_by=request.user,
+                    old_price=old_price,
+                    new_price=new_price_decimal
+                )
+                product.price = new_price_decimal
+                product.save()
+                messages.success(request, f"Price for {product.name} updated from ${old_price} to ${new_price_decimal}.")
+            else:
+                messages.info(request, f"Price for {product.name} unchanged.")
+
+        except Product.DoesNotExist:
+            messages.error(request, "Product not found.")
+        except Exception as e:
+            messages.error(request, f"Unexpected error: {e}")
+        return redirect('manual_pricing')
+
+    # Handle bulk discount by category
+    if request.method == 'POST' and 'bulk_category' in request.POST:
+        category = request.POST.get('bulk_category')
+        discount_type = request.POST.get('discount_type')  # 'percentage' or 'fixed'
+        discount_value = request.POST.get('discount_value')
+        try:
+            discount_value = Decimal(discount_value)
+            products_in_cat = Product.objects.filter(category=category)
+            updated_count = 0
+            for prod in products_in_cat:
+                old_price = prod.price
+                if discount_type == 'percentage':
+                    new_price = old_price * (1 - discount_value / 100)
+                else:  # fixed amount
+                    new_price = old_price - discount_value
+                # Ensure price doesn't go below zero
+                new_price = max(new_price, Decimal('0.00'))
+                new_price = new_price.quantize(Decimal('0.01'))
+                if old_price != new_price:
+                    PriceHistory.objects.create(
+                        product=prod,
+                        changed_by=request.user,
+                        old_price=old_price,
+                        new_price=new_price
+                    )
+                    prod.price = new_price
+                    prod.save()
+                    updated_count += 1
+            messages.success(request, f"Bulk discount applied to {updated_count} products in '{category}' category.")
+        except Exception as e:
+            messages.error(request, f"Error applying bulk discount: {e}")
+        return redirect('manual_pricing')
+
+    context = {
+        'products': products,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'categories': categories,
+    }
+    return render(request, 'manual_pricing.html', context)
 
