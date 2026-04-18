@@ -1,4 +1,5 @@
 import os
+import threading
 import joblib
 from django.conf import settings
 from django.apps import AppConfig
@@ -29,7 +30,7 @@ class ProjectsmartshelfConfig(AppConfig):
             else:
                 print("ML files not found. Check paths.")
 
-            # 2. Connect hardware signals and open serial port
-            import ProjectSmartShelf.hardware.signals  # noqa
-            from ProjectSmartShelf.hardware.arduino_bridge import get_serial_connection
-            get_serial_connection()
+            def sync_prices():
+                from .utils import send_all_prices_to_displays
+                send_all_prices_to_displays()
+            threading.Thread(target=sync_prices).start()

@@ -9,7 +9,8 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     expiry_date=models.DateField(null=True, blank=True)
     inventory_level = models.IntegerField(default=0, help_text='Current stock count')
-   
+    lcd_id = models.IntegerField(default=1, help_text="1, 2, or 3 for the shelf display")
+    
     def __str__(self):
         return f"{self.name} - ${self.price}"
    

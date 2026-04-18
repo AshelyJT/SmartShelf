@@ -18,6 +18,7 @@ from decimal import Decimal
 from .models import DailyProductSales, PriceHistory
 from .apps import ProjectsmartshelfConfig
 from .ml_models.utils import prepare_input_for_tomorrow, predict_prices_batch
+from .utils import send_price_update
 
 
 def login_view(request):
@@ -330,7 +331,6 @@ def pricing_dashboard(request):
             new_price = item['ai_price']
             old_price = product.price
             if new_price != old_price:
-                # Log the change before updating
                 PriceHistory.objects.create(
                     product=product,
                     changed_by=request.user,
@@ -339,6 +339,8 @@ def pricing_dashboard(request):
                 )
                 product.price = new_price
                 product.save()
+                # MQTT push
+                send_price_update(product.lcd_id, product.name, str(new_price))
                 update_count += 1
         messages.success(request, f"Successfully updated prices for {update_count} products!")
         return redirect('pricing_dashboard')
@@ -404,16 +406,17 @@ def apply_single_price(request):
             product = Product.objects.get(id=product_id)
             new_price_decimal = Decimal(new_price).quantize(Decimal('0.01'))
             if product.price != new_price_decimal:
-                # --- History logging start ---
+                # Log history
                 PriceHistory.objects.create(
                     product=product,
                     changed_by=request.user,
                     old_price=product.price,
                     new_price=new_price_decimal
                 )
-                # --- History logging end ---
                 product.price = new_price_decimal
                 product.save()
+                # MQTT push to ESP32
+                send_price_update(product.lcd_id, product.name, str(new_price_decimal))
                 messages.success(request, f"Price updated for {product.name}.")
             else:
                 messages.info(request, f"Price for {product.name} unchanged.")
@@ -681,6 +684,7 @@ def manual_pricing_view(request):
                 )
                 product.price = new_price_decimal
                 product.save()
+                send_price_update(product.lcd_id, product.name, str(new_price_decimal))
                 messages.success(request, f"Price for {product.name} updated from ${old_price} to ${new_price_decimal}.")
             else:
                 messages.info(request, f"Price for {product.name} unchanged.")
@@ -718,6 +722,7 @@ def manual_pricing_view(request):
                     )
                     prod.price = new_price
                     prod.save()
+                    send_price_update(prod.lcd_id, prod.name, str(new_price))
                     updated_count += 1
             messages.success(request, f"Bulk discount applied to {updated_count} products in '{category}' category.")
         except Exception as e:

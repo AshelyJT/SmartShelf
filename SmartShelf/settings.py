@@ -15,6 +15,8 @@ import os
 
 ARDUINO_PORT = 'COM9'   
 ARDUINO_BAUD = 9600 
+MQTT_BROKER_IP = "192.168.137.1"
+MQTT_PORT = 1883
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
