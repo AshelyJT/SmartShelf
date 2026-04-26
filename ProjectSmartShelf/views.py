@@ -737,3 +737,107 @@ def manual_pricing_view(request):
     }
     return render(request, 'manual_pricing.html', context)
 
+
+@staff_member_required(login_url='staff_login')
+def inventory_management_view(request):
+    products = Product.objects.all().order_by('name')
+    search_query = request.GET.get('search', '')
+    category_filter = request.GET.get('category', '')
+    low_stock_filter = request.GET.get('low_stock', '')
+
+    if search_query:
+        products = products.filter(name__icontains=search_query)
+    if category_filter:
+        products = products.filter(category=category_filter)
+    if low_stock_filter:
+        try:
+            threshold = int(low_stock_filter)
+            products = products.filter(inventory_level__lte=threshold)
+        except ValueError:
+            pass  # Ignore invalid threshold
+
+    # Get unique categories for filter dropdown
+    categories = Product.objects.values_list('category', flat=True).distinct().order_by('category')
+
+    # Handle inventory update
+    if request.method == 'POST' and 'product_id' in request.POST:
+        product_id = request.POST.get('product_id')
+        try:
+            product = Product.objects.get(id=product_id)
+            old_inventory = product.inventory_level
+
+            new_inventory_raw = request.POST.get('new_inventory', '').strip()
+            adjustment_raw = request.POST.get('adjustment', '').strip()
+            expiry_date_raw = request.POST.get('expiry_date', '').strip()
+
+            new_inventory = old_inventory  # default
+
+            if new_inventory_raw:
+                try:
+                    new_inventory = int(new_inventory_raw)
+                    if new_inventory < 0:
+                        messages.error(request, "Inventory level cannot be negative.")
+                        return redirect('inventory_management')
+                except ValueError:
+                    messages.error(request, f"Invalid inventory value: {new_inventory_raw}")
+                    return redirect('inventory_management')
+            elif adjustment_raw:
+                try:
+                    adjustment = int(adjustment_raw)
+                    new_inventory = old_inventory + adjustment
+                    if new_inventory < 0:
+                        messages.error(request, "Inventory level cannot be negative.")
+                        return redirect('inventory_management')
+                except ValueError:
+                    messages.error(request, f"Invalid adjustment value: {adjustment_raw}")
+                    return redirect('inventory_management')
+            else:
+                messages.error(request, "No inventory change provided.")
+                return redirect('inventory_management')
+
+            # If adding new stock (inventory increasing), require expiry date
+            if new_inventory > old_inventory:
+                if not expiry_date_raw:
+                    messages.error(request, "Expiry date is required when adding new stock.")
+                    return redirect('inventory_management')
+                try:
+                    from django.utils.dateparse import parse_date
+                    expiry_date = parse_date(expiry_date_raw)
+                    if not expiry_date:
+                        raise ValueError
+                    product.expiry_date = expiry_date
+                except ValueError:
+                    messages.error(request, f"Invalid expiry date format: {expiry_date_raw}")
+                    return redirect('inventory_management')
+
+            product.inventory_level = new_inventory
+            product.save()
+
+            if new_inventory_raw:
+                messages.success(request, f"Inventory for {product.name} updated from {old_inventory} to {new_inventory}.")
+            else:
+                messages.success(request, f"Inventory for {product.name} adjusted by {int(adjustment_raw)} (from {old_inventory} to {new_inventory}).")
+
+        except Product.DoesNotExist:
+            messages.error(request, "Product not found.")
+        except Exception as e:
+            messages.error(request, f"Unexpected error: {e}")
+        return redirect('inventory_management')
+
+    # Calculate some stats
+    total_products = Product.objects.count()
+    low_stock_products = Product.objects.filter(inventory_level__lte=10).count()
+    out_of_stock_products = Product.objects.filter(inventory_level=0).count()
+
+    context = {
+        'products': products,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'low_stock_filter': low_stock_filter,
+        'categories': categories,
+        'total_products': total_products,
+        'low_stock_products': low_stock_products,
+        'out_of_stock_products': out_of_stock_products,
+    }
+    return render(request, 'inventory_management.html', context)
+
