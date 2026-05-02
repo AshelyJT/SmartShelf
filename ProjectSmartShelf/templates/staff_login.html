@@ -11,50 +11,194 @@
 
     <style>
         body {
-            background: linear-gradient(135deg, #5ea4ff 0%, #001aff 100%);
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animated background particles */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 255, 198, 0.2) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(120deg); }
+            66% { transform: translateY(10px) rotate(240deg); }
         }
 
         .card {
-            border-radius: 1rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
             border: none;
+            backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.05);
+            position: relative;
+            z-index: 1;
         }
 
         .card-header {
             background: transparent;
-            border-bottom: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             text-align: center;
-            padding: 1.5rem 1rem 0.5rem;
+            padding: 2rem 1.5rem 1rem;
+            border-radius: 20px 20px 0 0 !important;
         }
 
         .logo {
-            max-width: 180px;
-            margin-bottom: 0.5rem;
+            max-width: 200px;
+            margin-bottom: 0.75rem;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+            transition: transform 0.3s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.05);
         }
 
         .tagline {
-            font-size: 0.9rem;
-            color: #6c757d;
-            letter-spacing: 0.5px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            letter-spacing: 1px;
+            font-weight: 500;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
-        .btn-login {
-            background: linear-gradient(45deg, #af0000d8, #000958);
-            border: none;
-            transition: 0.3s;
+        .card-body {
+            padding: 2rem 1.5rem;
+            background: transparent;
         }
 
-        .btn-login:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
+        .alert-danger {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            color: #ff6b7d;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .form-floating {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-floating>.form-control {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            padding: 1rem 0.75rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .form-floating>.form-control:focus {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #00d4ff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 212, 255, 0.25);
+            color: white;
         }
 
         .form-floating>label {
+            color: rgba(255, 255, 255, 0.7);
             font-weight: 500;
+            padding: 1rem 0.75rem;
+        }
+
+        .form-floating>.form-control:focus~label,
+        .form-floating>.form-control:not(:placeholder-shown)~label {
+            color: #00d4ff;
+            transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 0.875rem 1.5rem;
+            font-weight: 600;
+            font-size: 1rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-login:hover::before {
+            left: 100%;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .card-footer {
+            background: transparent;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            padding: 1rem 1.5rem 1.5rem;
+            border-radius: 0 0 20px 20px !important;
+        }
+
+        .card-footer small {
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 500;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 576px) {
+            .card {
+                margin: 1rem;
+                border-radius: 15px;
+            }
+
+            .card-header {
+                padding: 1.5rem 1rem 0.75rem;
+            }
+
+            .card-body {
+                padding: 1.5rem 1rem;
+            }
+
+            .logo {
+                max-width: 150px;
+            }
         }
     </style>
 </head>
@@ -67,12 +211,11 @@
                 <div class="card">
                     <div class="card-header">
                         <!-- Your Logo Image -->
-                        <img src="{% static 'images/logo.png' %}" alt="SmartShelf Logo" class="logo">
+                        <img src="{% static 'images/logo_transparent.png' %}" alt="SmartShelf Logo" class="logo">
                         <div class="tagline">AI-POWERED RETAIL DISPLAYS</div>
                     </div>
                     
                     <div class="card-body p-4">
-                        <div class="card-body p-4">
                         {% if error %}
                             <div class="alert alert-danger" role="alert">
                                 {{ error }}
@@ -99,7 +242,7 @@
                         </form>
                     </div>
                     <div class="card-footer text-center bg-transparent border-0 pb-4">
-                        <small class="text-muted">SmartShelf &copy; 2026</small>
+                        <small>SmartShelf &copy; 2026</small>
                     </div>
                 </div>
             </div>

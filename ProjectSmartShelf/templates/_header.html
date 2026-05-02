@@ -3,7 +3,7 @@
         <h1 class="h2 mb-0">{% block page_title %}Dashboard{% endblock %}</h1>
         <div class="btn-toolbar">
             {% if user.is_authenticated %}
-                <span class="text-muted">Welcome, {{ user.username }}</span>
+                <span class="text-light">Welcome, {{ user.username }}</span>
             {% endif %}
         </div>
     </div>

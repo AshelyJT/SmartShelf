@@ -60,7 +60,7 @@
             <!-- Sidebar -->
             <nav class="col-md-3 col-lg-2 d-md-block sidebar p-3">
                 <div class="position-sticky pt-3">
-                    <h5 class="text-muted mb-4">SmartShelf | CheckOut</h5>
+                    <h5 class="mb-4">SmartShelf | CheckOut</h5>
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link {% if request.resolver_match.url_name == 'checkout_home' %}active{% endif %}" 
@@ -91,7 +91,7 @@
                     <h1 class="h2">{% block page_title %}Dashboard{% endblock %}</h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
                         {% if user.is_authenticated %}
-                            <span class="text-muted">Welcome, {{ user.username }}</span>
+                            <span class="text-light">Welcome, {{ user.username }}</span>
                         {% endif %}
                     </div>
                 </div>

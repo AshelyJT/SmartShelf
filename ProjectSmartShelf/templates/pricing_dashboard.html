@@ -11,7 +11,7 @@
     .main-content {
         background-color: #0f0f1a !important;
     }
-    .lead, .text-muted {
+    .lead {
         color: #cdd9ed !important;
     }
     .card {
@@ -63,14 +63,52 @@
 {% endblock %}
 
 {% block content %}
-<div class="mb-4">
-    <p class="lead">Review the AI-suggested price changes based on sales velocity and expiration dates.</p>
-    <h5 class="text-muted">Current date: {{ current_date|date:"F j, Y" }}</h5>
+<div class="dashboard-summary row g-4 mb-4">
+    <div class="col-sm-6 col-lg-4">
+        <div class="metric-card shadow-sm h-100">
+            <div class="d-flex align-items-start mb-3">
+                <span class="metric-icon"><i class="bi bi-lightning-charge"></i></span>
+                <div>
+                    <div class="metric-label">Recommendations</div>
+                    <div class="metric-value">{{ report_data|length }}</div>
+                </div>
+            </div>
+            <div class="metric-note">Active AI pricing recommendations.</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+        <div class="metric-card shadow-sm h-100">
+            <div class="d-flex align-items-start mb-3">
+                <span class="metric-icon"><i class="bi bi-calendar-check"></i></span>
+                <div>
+                    <div class="metric-label">Current Date</div>
+                    <div class="metric-value">{{ current_date|date:"M j, Y" }}</div>
+                </div>
+            </div>
+            <div class="metric-note">Context for price expiry and inventory alerts.</div>
+        </div>
+    </div>
+    <div class="col-sm-12 col-lg-4">
+        <div class="metric-card shadow-sm h-100">
+            <div class="d-flex align-items-start mb-3">
+                <span class="metric-icon"><i class="bi bi-graph-up"></i></span>
+                <div>
+                    <div class="metric-label">Pricing Insight</div>
+                    <div class="metric-value">AI-driven</div>
+                </div>
+            </div>
+            <div class="metric-note">Smart recommendations for margin improvement.</div>
+        </div>
+    </div>
 </div>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <form method="POST">
+<div class="card section-card shadow-sm mb-4">
+    <div class="card-body d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+        <div>
+            <h5 class="card-title section-heading">AI Pricing Controls</h5>
+            <p class="mb-0">Apply multiple recommendations or review specific product actions below.</p>
+        </div>
+        <form method="POST" class="m-0">
             {% csrf_token %}
             <button type="submit" name="apply_all" class="btn btn-primary">Apply All AI Recommendations</button>
         </form>
@@ -83,17 +121,24 @@
             <table class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Product</th><th>Category</th><th>Current Price</th><th>Expiry Date</th>
-                        <!-- Available Stock -->
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Current Price</th>
+                        <th>Expiry Date</th>
                         <th>Available Stock</th>
-                        <th>Days Until Expiry</th><th>AI Recommended Price</th><th>Trend</th><th>Action</th>
+                        <th>Days Until Expiry</th>
+                        <th>AI Recommended Price</th>
+                        <th>Trend</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in report_data %}
                     <tr>
-                        <td>{{ item.product.name }}</td><td>{{ item.product.category }}</td>
-                        <td>${{ item.current_price|floatformat:2 }}</td><td>{{ item.product.expiry_date|date:"F j, Y" }}</td>
+                        <td>{{ item.product.name }}</td>
+                        <td>{{ item.product.category }}</td>
+                        <td>${{ item.current_price|floatformat:2 }}</td>
+                        <td>{{ item.product.expiry_date|date:"F j, Y" }}</td>
                         <td>{{ item.product.inventory_level }}</td>
                         <td>
                             {% if item.days_until_expiry < 0 %}
@@ -111,9 +156,13 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="product_id" value="{{ item.product.id }}">
                                 <input type="hidden" name="new_price" value="{{ item.ai_price }}">
-                                <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                                <button type="submit" class="btn btn-outline-primary btn-sm">Apply</button>
                             </form>
                          </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">No AI pricing recommendations are available right now.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

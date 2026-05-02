@@ -95,6 +95,27 @@
         background-color: #1e1e2f;
         border-radius: 0.5rem;
     }
+    /* Scrollable table container for Recent Daily Summaries */
+    .table-responsive.scrollable-summaries {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    /* Custom scrollbar for scrollable summaries */
+    .scrollable-summaries::-webkit-scrollbar {
+        width: 8px;
+    }
+    .scrollable-summaries::-webkit-scrollbar-track {
+        background: rgba(45, 45, 58, 0.3);
+        border-radius: 10px;
+    }
+    .scrollable-summaries::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #00d4ff 0%, #7b2cbf 100%);
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    .scrollable-summaries::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #00b8d4 0%, #6a1fb4 100%);
+    }
 
     /* Buttons */
     .btn {
@@ -167,10 +188,46 @@
         margin-top: 1rem;
     }
 
-    /* Responsive */
+    /* Metric cards (new style) */
+    .metric-card {
+        background-color: #1e1e2f;
+        border: 1px solid #2d2d3a;
+        border-radius: 1rem;
+        padding: 1rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.2);
+    }
+    .metric-icon {
+        font-size: 1.75rem;
+        margin-right: 0.75rem;
+        color: #0d6efd;
+    }
+    .metric-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #adbac7;
+    }
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1.2;
+    }
+    .metric-note {
+        font-size: 0.75rem;
+        color: #8b949e;
+        margin-top: 0.5rem;
+    }
+    .section-heading {
+        margin-bottom: 0;
+    }
     @media (max-width: 768px) {
-        .stat-card .value {
-            font-size: 1.5rem;
+        .metric-value {
+            font-size: 1.25rem;
         }
         .btn {
             padding: 0.4rem 1rem;
@@ -180,76 +237,157 @@
 {% endblock %}
 
 {% block content %}
-<!-- Stats Cards Row -->
-<div class="row g-4 mb-4">
+<div class="dashboard-summary row g-4 mb-4">
     <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">Active Day</h5>
-                <div class="value" id="current-day-display">{{ today|date:'Y-m-d' }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">Yesterday</h5>
-                <div class="value" id="yesterday-display">{{ yesterday|date:'Y-m-d' }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">Total Summary Records</h5>
-                <div class="value">{{ total_summaries }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">Today's Date</h5>
-                <div class="value">{{ today }}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="card stat-card h-100 shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">Last Generated</h5>
-                <div class="value">
-                    {% if recent_summaries.0.date %}
-                        {{ recent_summaries.0.date }}
-                    {% else %}
-                        Never
-                    {% endif %}
+        <div class="metric-card shadow-sm h-100">
+            <div class="d-flex align-items-start mb-3">
+                <span class="metric-icon"><i class="bi bi-calendar-day"></i></span>
+                <div>
+                    <div class="metric-label">Active Day</div>
+                    <div class="metric-value" id="current-day-display">{{ today|date:'Y-m-d' }}</div>
                 </div>
             </div>
+            <div class="metric-note">Current operational day for analytics.</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="metric-card shadow-sm h-100">
+            <div class="d-flex align-items-start mb-3">
+                <span class="metric-icon"><i class="bi bi-arrow-counterclockwise"></i></span>
+                <div>
+                    <div class="metric-label">Yesterday</div>
+                    <div class="metric-value" id="yesterday-display">{{ yesterday|date:'Y-m-d' }}</div>
+                </div>
+            </div>
+            <div class="metric-note">Latest completed sales period.</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="metric-card shadow-sm h-100">
+            <div class="d-flex align-items-start mb-3">
+                <span class="metric-icon"><i class="bi bi-bar-chart-line"></i></span>
+                <div>
+                    <div class="metric-label">Summary Records</div>
+                    <div class="metric-value">{{ total_summaries }}</div>
+                </div>
+            </div>
+            <div class="metric-note">Total daily summaries stored.</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="metric-card shadow-sm h-100">
+            <div class="d-flex align-items-start mb-3">
+                <span class="metric-icon"><i class="bi bi-clock-history"></i></span>
+                <div>
+                    <div class="metric-label">Last Generated</div>
+                    <div class="metric-value">
+                        {% if recent_summaries.0.date %}
+                            {{ recent_summaries.0.date }}
+                        {% else %}
+                            Never
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="metric-note">Most recent summary refresh time.</div>
         </div>
     </div>
 </div>
 
-<!-- Controls Section -->
 <div class="card shadow-sm mb-4">
     <div class="card-body">
-        <h5 class="card-title">Generate Daily Summary</h5>
-        <div class="row g-3 align-items-end">
-            <div class="col-auto">
-                <label for="summary-date" class="form-label fw-semibold">Date:</label>
-                <input type="date" id="summary-date" class="form-control" value="{{ yesterday|date:'Y-m-d' }}">
+        <h5 class="card-title">Product Demand Trends</h5>
+        <style>
+            .chart-container {
+                position: relative;
+                height: 250px;
+                width: 100%;
+                margin: 0 auto;
+            }
+            .carousel-item {
+                transition: transform 0.6s ease-in-out;
+            }
+            .carousel-inner {
+                min-height: 320px; /* ensures consistent height even when loading */
+            }
+            .product-pair {
+                display: flex;
+                gap: 20px;
+                justify-content: center;
+                align-items: center;
+            }
+            .product-item {
+                flex: 1;
+                text-align: center;
+                max-width: 45%;
+            }
+            @media (max-width: 768px) {
+                .product-pair {
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                .product-item {
+                    max-width: 100%;
+                }
+                .chart-container {
+                    height: 200px;
+                }
+            }
+        </style>
+
+        <div id="demand-carousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                {% for product in top_products %}
+                    {% if forloop.counter0|divisibleby:2 %}
+                        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                            <div class="product-pair">
+                    {% endif %}
+                                <div class="product-item">
+                                    <h6>{{ product.name }}</h6>
+                                    <div class="chart-container">
+                                        <canvas id="chart-{{ forloop.counter }}" style="display: block; width: 100%; height: 100%;"></canvas>
+                                    </div>
+                                </div>
+                    {% if forloop.counter|divisibleby:2 or forloop.last %}
+                            </div>
+                        </div>
+                    {% endif %}
+                {% empty %}
+                <div class="carousel-item active">
+                    <div class="text-center py-4">
+                        <p>No product data available for demand visualization.</p>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            <div class="col-auto">
+            {% if top_products|length > 1 %}
+            <button class="carousel-control-prev" type="button" data-bs-target="#demand-carousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#demand-carousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card section-card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+            <div>
+                <h5 class="card-title section-heading">Daily Summary Actions</h5>
+                <p class="mb-0" style="color: #adbac7 !important;">Generate and manage the daily sales snapshot with one click.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
                 <button onclick="generateSummary()" class="btn btn-primary">Generate Summary</button>
-            </div>
-            <div class="col-auto">
                 <button onclick="closeDayAdvance()" class="btn btn-success">🗓️ Close Day & Advance</button>
-            </div>
-            <div class="col-auto">
                 <button onclick="resetSimulatedDate()" class="btn btn-secondary">Reset to Real Date</button>
             </div>
         </div>
-        <div id="summary-result" class="summary-result"></div>
+        <div id="summary-result" class="summary-result mt-3"></div>
     </div>
 </div>
 
@@ -259,7 +397,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <h5 class="card-title">Recent Daily Summaries</h5>
-                <div class="table-responsive">
+                <div class="table-responsive scrollable-summaries">
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
@@ -281,7 +419,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">No daily summaries generated yet.</td>
+                                <td colspan="5" class="text-center py-4">No daily summaries generated yet.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -316,7 +454,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">No data for yesterday.</td>
+                                <td colspan="5" class="text-center py-4">No data for yesterday.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -422,12 +560,12 @@
     }
 
     function generateSummary() {
-        const dateInput = document.getElementById('summary-date');
-        const date = dateInput.value;
-        if (!date) {
-            alert('Please select a date');
+        const activeDayElem = document.getElementById('current-day-display');
+        if (!activeDayElem) {
+            alert('Cannot determine the current date.');
             return;
         }
+        const date = activeDayElem.textContent;
         generateSummaryWithDate(date);
     }
 
@@ -450,11 +588,16 @@
         .then(data => {
             if (data.success) {
                 resultDiv.innerHTML = `<div class="alert alert-success">✅ ${data.message}</div>`;
-                document.getElementById('current-day-display').textContent = data.next_date;
-                const nextDate = new Date(data.next_date);
-                nextDate.setDate(nextDate.getDate() - 1);
-                const yesterdayStr = nextDate.toISOString().split('T')[0];
-                document.getElementById('yesterday-display').textContent = yesterdayStr;
+                // Safely update date displays
+                const currentDayElem = document.getElementById('current-day-display');
+                const yesterdayElem = document.getElementById('yesterday-display');
+                if (currentDayElem) currentDayElem.textContent = data.next_date;
+                if (yesterdayElem && data.next_date) {
+                    const nextDate = new Date(data.next_date);
+                    nextDate.setDate(nextDate.getDate() - 1);
+                    const yesterdayStr = nextDate.toISOString().split('T')[0];
+                    yesterdayElem.textContent = yesterdayStr;
+                }
                 setTimeout(() => window.location.reload(), 2000);
             } else {
                 resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${data.error}</div>`;
@@ -475,5 +618,63 @@
             }).then(() => window.location.reload());
         }
     }
+</script>
+
+<script>
+    // Product demand charts
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for product in top_products %}
+        const ctx{{ forloop.counter }} = document.getElementById('chart-{{ forloop.counter }}');
+        if (ctx{{ forloop.counter }}) {
+            new Chart(ctx{{ forloop.counter }}, {
+                type: 'line',
+                data: {
+                    labels: {{ product.demand_labels|default:'["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]'|safe }},
+                    datasets: [{
+                        label: 'Demand',
+                        data: {{ product.demand_data|default:'[12, 19, 3, 5, 2, 3, 9]'|safe }},
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#2d2d3a'
+                            },
+                            ticks: {
+                                color: '#adbac7'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: '#2d2d3a'
+                            },
+                            ticks: {
+                                color: '#adbac7'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            backgroundColor: '#0d6efd'
+                        }
+                    }
+                }
+            });
+        }
+        {% endfor %}
+    });
 </script>
 {% endblock %}

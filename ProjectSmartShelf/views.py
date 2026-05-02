@@ -1,5 +1,6 @@
 import csv
 import datetime
+from datetime import timedelta
 import json
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
@@ -53,19 +54,58 @@ def analytics_dashboard(request):
     if simulated_today is None:
         simulated_today = timezone.now().date()
     
-    yesterday = simulated_today - datetime.timedelta(days=1)
+    yesterday = simulated_today - timedelta(days=1)
     
     recent_summaries = DailyProductSales.objects.all().order_by('-date')[:20]
     yesterday_top = DailyProductSales.objects.filter(date=yesterday).order_by('-units_sold')[:10]
     
-    # Category data (unchanged)
-    from django.db.models import Sum
+    # Category data
     category_data = DailyProductSales.objects.filter(
         date=yesterday
     ).values('category').annotate(
         total_units=Sum('units_sold'),
         total_revenue=Sum('total_revenue')
     ).order_by('-total_units')
+    
+    # --- Top Products for Demand Trends (last 7 days) ---
+    last_7_days = [simulated_today - timedelta(days=i) for i in range(7)]
+    top_products_list = DailyProductSales.objects.filter(
+        date__gte=simulated_today - timedelta(days=30)
+    ).values('product_name', 'category').annotate(
+        total_units=Sum('units_sold')
+    ).order_by('-total_units')[:5]  # top 5 products by total units last 30 days
+    
+    top_products = []
+    for prod in top_products_list:
+        # Get daily sales for the last 7 days for this product
+        daily_sales = DailyProductSales.objects.filter(
+            product_name=prod['product_name'],
+            date__gte=simulated_today - timedelta(days=7)
+        ).order_by('date').values_list('units_sold', flat=True)
+        
+        # Convert to list and fill missing days with 0
+        demand_data = list(daily_sales)
+        while len(demand_data) < 7:
+            demand_data.append(0)
+        
+        # Create date labels (last 7 days)
+        date_labels = [(simulated_today - timedelta(days=i)).strftime('%m/%d') for i in range(6, -1, -1)]
+        
+        top_products.append({
+            'name': prod['product_name'],
+            'category': prod['category'],
+            'demand_labels': date_labels,
+            'demand_data': demand_data,
+        })
+    
+    # Fallback if no data exists yet
+    if not top_products:
+        top_products.append({
+            'name': 'Sample Product',
+            'category': 'Sample',
+            'demand_labels': ['Day 7', 'Day 6', 'Day 5', 'Day 4', 'Day 3', 'Day 2', 'Yesterday'],
+            'demand_data': [12, 19, 3, 5, 2, 3, 9],
+        })
     
     context = {
         'today': simulated_today,
@@ -74,8 +114,10 @@ def analytics_dashboard(request):
         'yesterday_top': yesterday_top,
         'category_data': category_data,
         'total_summaries': DailyProductSales.objects.count(),
+        'top_products': top_products,   # <-- added for demand charts
     }
     return render(request, 'dashboard.html', context)
+
 
 @staff_member_required(login_url='staff_login')
 def generate_summary_api(request):

@@ -8,7 +8,7 @@
 {% block extra_css %}
 <style>
     .main-content { background-color: #0f0f1a !important; }
-    .lead, .text-muted { color: #cdd9ed !important; }
+    .lead { color: #cdd9ed !important; }
     .card, .card-body { background-color: #1e1e2f !important; border-color: #2d2d3a !important; }
     .card-title { color: #ffffff !important; border-left: 4px solid #0d6efd !important; padding-left: 0.75rem; }
     .table, .table tbody, .table tr, .table td, .table th, .table thead { background-color: #1e1e2f !important; color: #cdd9ed !important; }
@@ -181,7 +181,7 @@
 
         {% if not products %}
         <div class="text-center py-4">
-            <p class="text-muted">No products found matching your criteria.</p>
+            <p>No products found matching your criteria.</p>
         </div>
         {% endif %}
     </div>
