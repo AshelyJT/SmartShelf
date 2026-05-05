@@ -38,6 +38,12 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'lcd_management' %}active{% endif %}" 
+                href="{% url 'lcd_management' %}">
+                    <i class="bi bi-display"></i> LCD Management
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'price_history' %}active{% endif %}" 
                 href="{% url 'price_history' %}">
                     <i class="bi bi-clock-history"></i> Price History

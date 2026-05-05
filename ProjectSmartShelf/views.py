@@ -22,6 +22,9 @@ from .ml_models.utils import prepare_input_for_tomorrow, predict_prices_batch
 from .utils import send_price_update
 
 
+AVAILABLE_LCD_IDS = (1, 2, 3)
+
+
 def login_view(request):
     error_message = ""
     if request.method == "POST":
@@ -882,4 +885,147 @@ def inventory_management_view(request):
         'out_of_stock_products': out_of_stock_products,
     }
     return render(request, 'inventory_management.html', context)
+
+
+@staff_member_required(login_url='staff_login')
+def lcd_management_view(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'sync_all':
+            success_count = 0
+            failed_count = 0
+            skipped_count = 0
+
+            for product in Product.objects.all().order_by('lcd_id', 'name'):
+                if product.lcd_id not in AVAILABLE_LCD_IDS:
+                    skipped_count += 1
+                    continue
+                if send_price_update(product.lcd_id, product.name, str(product.price)):
+                    success_count += 1
+                else:
+                    failed_count += 1
+
+            if failed_count:
+                messages.warning(
+                    request,
+                    f"Synced {success_count} product displays. {failed_count} update(s) failed. {skipped_count} unassigned.",
+                )
+            else:
+                messages.success(request, f"Synced {success_count} product displays. {skipped_count} unassigned.")
+            return redirect('lcd_management')
+
+        product_id = request.POST.get('product_id')
+
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            messages.error(request, "Product not found.")
+            return redirect('lcd_management')
+
+        if action == 'sync_product':
+            if product.lcd_id not in AVAILABLE_LCD_IDS:
+                messages.warning(request, f"{product.name} is not assigned to an LCD.")
+                return redirect('lcd_management')
+            if send_price_update(product.lcd_id, product.name, str(product.price)):
+                messages.success(request, f"Synced {product.name} to LCD {product.lcd_id}.")
+            else:
+                messages.warning(request, f"Could not sync {product.name} to LCD {product.lcd_id}.")
+            return redirect('lcd_management')
+
+        if action == 'update_assignment':
+            lcd_id_raw = request.POST.get('lcd_id', '').strip()
+
+            try:
+                lcd_id = int(lcd_id_raw)
+                if lcd_id != 0 and lcd_id not in AVAILABLE_LCD_IDS:
+                    raise ValueError
+            except ValueError:
+                messages.error(request, "Choose an available LCD or Not assigned.")
+                return redirect('lcd_management')
+
+            if lcd_id != 0:
+                conflicting_product = (
+                    Product.objects.filter(lcd_id=lcd_id)
+                    .exclude(id=product.id)
+                    .first()
+                )
+                if conflicting_product:
+                    messages.error(
+                        request,
+                        f"LCD {lcd_id} is already assigned to {conflicting_product.name}.",
+                    )
+                    return redirect('lcd_management')
+
+            product.lcd_id = lcd_id
+            product.save(update_fields=['lcd_id'])
+
+            if lcd_id == 0:
+                messages.success(request, f"{product.name} is now marked Not assigned.")
+            else:
+                messages.success(request, f"{product.name} assigned to LCD {lcd_id}.")
+            return redirect('lcd_management')
+
+        messages.error(request, "Unknown LCD management action.")
+        return redirect('lcd_management')
+
+    products = Product.objects.all()
+    search_query = request.GET.get('search', '')
+    category_filter = request.GET.get('category', '')
+    lcd_filter = request.GET.get('lcd_id', '')
+
+    if search_query:
+        products = products.filter(name__icontains=search_query)
+    if category_filter:
+        products = products.filter(category=category_filter)
+    if lcd_filter:
+        if lcd_filter == 'unassigned':
+            products = products.exclude(lcd_id__in=AVAILABLE_LCD_IDS)
+        else:
+            try:
+                lcd_id = int(lcd_filter)
+                if lcd_id in AVAILABLE_LCD_IDS:
+                    products = products.filter(lcd_id=lcd_id)
+            except ValueError:
+                pass
+
+    categories = Product.objects.values_list('category', flat=True).distinct().order_by('category')
+    occupied_lcd_ids = set(
+        Product.objects.filter(lcd_id__in=AVAILABLE_LCD_IDS)
+        .values_list('lcd_id', flat=True)
+    )
+    products = list(products)
+    products.sort(
+        key=lambda product: (
+            0 if product.lcd_id in AVAILABLE_LCD_IDS else 1,
+            product.lcd_id if product.lcd_id in AVAILABLE_LCD_IDS else len(AVAILABLE_LCD_IDS) + 1,
+            product.name.lower(),
+        )
+    )
+    for product in products:
+        product.is_lcd_assigned = product.lcd_id in AVAILABLE_LCD_IDS
+        other_occupied_lcd_ids = occupied_lcd_ids.copy()
+        if product.is_lcd_assigned:
+            other_occupied_lcd_ids.discard(product.lcd_id)
+        product.assignment_lcd_ids = [
+            lcd_id for lcd_id in AVAILABLE_LCD_IDS
+            if lcd_id not in other_occupied_lcd_ids
+        ]
+
+    assigned_products = Product.objects.filter(lcd_id__in=AVAILABLE_LCD_IDS).count()
+    unassigned_products = Product.objects.exclude(lcd_id__in=AVAILABLE_LCD_IDS).count()
+
+    context = {
+        'products': products,
+        'search_query': search_query,
+        'category_filter': category_filter,
+        'lcd_filter': lcd_filter,
+        'categories': categories,
+        'available_lcd_ids': AVAILABLE_LCD_IDS,
+        'total_products': Product.objects.count(),
+        'available_display_count': len(AVAILABLE_LCD_IDS),
+        'assigned_products': assigned_products,
+        'unassigned_products': unassigned_products,
+    }
+    return render(request, 'lcd_management.html', context)
 

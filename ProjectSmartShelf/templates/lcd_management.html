@@ -1,0 +1,593 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}LCD Management{% endblock %}
+
+{% block page_title %}<i class="bi bi-display me-2"></i>LCD Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content {
+        background:
+            linear-gradient(180deg, rgba(20, 25, 35, 0.98) 0%, rgba(11, 14, 20, 1) 100%) !important;
+    }
+
+    .lcd-page {
+        --lcd-bg: #111722;
+        --lcd-panel: #171d2a;
+        --lcd-panel-strong: #1d2534;
+        --lcd-line: #2a3446;
+        --lcd-line-soft: rgba(129, 148, 175, 0.18);
+        --lcd-text: #eef4fb;
+        --lcd-muted: #9baabe;
+        --lcd-blue: #5aa2ff;
+        --lcd-teal: #45d6c5;
+        --lcd-green: #71d66f;
+        --lcd-amber: #ffcc66;
+        --lcd-red: #ff7a7a;
+        color: var(--lcd-text);
+    }
+
+    .lcd-command-bar,
+    .lcd-panel,
+    .lcd-stat {
+        background: linear-gradient(180deg, rgba(29, 37, 52, 0.95), rgba(20, 26, 38, 0.98));
+        border: 1px solid var(--lcd-line);
+        border-radius: 8px;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.24);
+    }
+
+    .lcd-command-bar {
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding: 1rem;
+    }
+
+    .lcd-command-title {
+        align-items: center;
+        display: flex;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+
+    .lcd-command-title .title-icon {
+        align-items: center;
+        background: rgba(69, 214, 197, 0.14);
+        border: 1px solid rgba(69, 214, 197, 0.28);
+        border-radius: 8px;
+        color: var(--lcd-teal);
+        display: inline-flex;
+        height: 2.65rem;
+        justify-content: center;
+        width: 2.65rem;
+    }
+
+    .lcd-command-title h2 {
+        color: #ffffff;
+        font-size: 1rem;
+        line-height: 1.15;
+        margin: 0;
+    }
+
+    .lcd-command-title span {
+        color: var(--lcd-muted);
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.2rem;
+    }
+
+    .lcd-command-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        justify-content: flex-end;
+    }
+
+    .lcd-btn {
+        align-items: center;
+        border-radius: 8px;
+        display: inline-flex;
+        font-weight: 700;
+        gap: 0.45rem;
+        justify-content: center;
+        min-height: 2.5rem;
+        padding: 0.55rem 0.9rem;
+        white-space: nowrap;
+    }
+
+    .lcd-btn-primary {
+        background: linear-gradient(135deg, #2f7df4, #45d6c5);
+        border: 0;
+        color: #ffffff;
+    }
+
+    .lcd-btn-primary:hover {
+        color: #ffffff;
+        filter: brightness(1.06);
+    }
+
+    .lcd-btn-secondary {
+        background: #20293a;
+        border: 1px solid var(--lcd-line);
+        color: #dbe7f5;
+    }
+
+    .lcd-btn-secondary:hover {
+        background: #263145;
+        border-color: #40516c;
+        color: #ffffff;
+    }
+
+    .lcd-stat-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-bottom: 1rem;
+    }
+
+    .lcd-stat {
+        min-height: 126px;
+        overflow: hidden;
+        padding: 1rem;
+        position: relative;
+    }
+
+    .lcd-stat::before {
+        content: "";
+        height: 3px;
+        left: 0;
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+
+    .lcd-stat.stat-products::before { background: var(--lcd-blue); }
+    .lcd-stat.stat-available::before { background: var(--lcd-teal); }
+    .lcd-stat.stat-assigned::before { background: var(--lcd-green); }
+    .lcd-stat.stat-open::before { background: var(--lcd-amber); }
+
+    .lcd-stat-top {
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 1.1rem;
+    }
+
+    .lcd-stat-label {
+        color: var(--lcd-muted);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .lcd-stat-icon {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--lcd-line-soft);
+        border-radius: 8px;
+        display: inline-flex;
+        height: 2.3rem;
+        justify-content: center;
+        width: 2.3rem;
+    }
+
+    .lcd-stat-value {
+        color: #ffffff;
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .lcd-stat-note {
+        color: #b1bfd0;
+        font-size: 0.82rem;
+        margin-top: 0.7rem;
+    }
+
+    .lcd-panel {
+        overflow: hidden;
+    }
+
+    .lcd-panel-header {
+        align-items: center;
+        border-bottom: 1px solid var(--lcd-line);
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .lcd-panel-header h3 {
+        color: #ffffff;
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .lcd-panel-header span {
+        color: var(--lcd-muted);
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.25rem;
+    }
+
+    .lcd-filter-grid {
+        align-items: end;
+        border-bottom: 1px solid var(--lcd-line);
+        display: grid;
+        gap: 0.85rem;
+        grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.8fr) minmax(170px, 0.8fr) auto;
+        padding: 1rem;
+    }
+
+    .lcd-page .form-label {
+        color: #c9d5e6 !important;
+        font-size: 0.78rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+    }
+
+    .lcd-page .form-control,
+    .lcd-page .form-select {
+        background-color: #111824 !important;
+        border: 1px solid var(--lcd-line) !important;
+        border-radius: 8px;
+        color: #ffffff !important;
+        min-height: 2.55rem;
+    }
+
+    .lcd-page .form-control::placeholder {
+        color: #7f8da0 !important;
+        opacity: 1;
+    }
+
+    .lcd-page .form-control:focus,
+    .lcd-page .form-select:focus {
+        background-color: #131c2a !important;
+        border-color: var(--lcd-blue) !important;
+        box-shadow: 0 0 0 0.2rem rgba(90, 162, 255, 0.18);
+        color: #ffffff !important;
+    }
+
+    .lcd-table-wrap {
+        overflow-x: auto;
+    }
+
+    .lcd-table {
+        color: #dce6f3 !important;
+        margin: 0;
+    }
+
+    .lcd-table thead th {
+        background: #151d2a !important;
+        border-bottom: 1px solid var(--lcd-line) !important;
+        color: #f6f8fb !important;
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        padding: 0.65rem 0.85rem;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .lcd-table tbody td {
+        background: #171d2a !important;
+        border-bottom: 1px solid rgba(129, 148, 175, 0.14) !important;
+        color: #dce6f3 !important;
+        padding: 0.55rem 0.85rem;
+        vertical-align: middle;
+    }
+
+    .lcd-table tbody tr:hover td {
+        background: #1d2637 !important;
+    }
+
+    .unassigned-row td {
+        background: #211f2c !important;
+    }
+
+    .product-cell {
+        align-items: center;
+        display: flex;
+        gap: 0.55rem;
+        min-width: 190px;
+    }
+
+    .product-cell-icon {
+        align-items: center;
+        background: rgba(90, 162, 255, 0.14);
+        border: 1px solid rgba(90, 162, 255, 0.26);
+        border-radius: 6px;
+        color: var(--lcd-blue);
+        display: inline-flex;
+        flex: 0 0 auto;
+        height: 1.75rem;
+        justify-content: center;
+        width: 1.75rem;
+    }
+
+    .product-name {
+        color: #ffffff;
+        font-size: 0.9rem;
+        font-weight: 700;
+    }
+
+    .category-chip,
+    .assignment-badge {
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.72rem;
+        font-weight: 800;
+        padding: 0.25rem 0.6rem;
+        white-space: nowrap;
+    }
+
+    .category-chip {
+        background: rgba(90, 162, 255, 0.12);
+        border: 1px solid rgba(90, 162, 255, 0.22);
+        color: #b9d8ff;
+    }
+
+    .assignment-badge {
+        align-items: center;
+        gap: 0.35rem;
+        margin-top: 0;
+    }
+
+    .assignment-badge.assigned {
+        background: rgba(113, 214, 111, 0.12);
+        border: 1px solid rgba(113, 214, 111, 0.28);
+        color: #a7f3a5;
+    }
+
+    .assignment-badge.unassigned {
+        background: rgba(255, 204, 102, 0.13);
+        border: 1px solid rgba(255, 204, 102, 0.28);
+        color: #ffe2a3;
+    }
+
+    .price-value {
+        color: #ffffff;
+        font-size: 0.9rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .assignment-control {
+        align-items: center;
+        display: flex;
+        gap: 0.55rem;
+        min-width: 260px;
+    }
+
+    .assignment-control .form-select {
+        min-height: 2rem;
+        padding-bottom: 0.25rem;
+        padding-top: 0.25rem;
+        width: 150px;
+    }
+
+    .row-actions {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        gap: 0.4rem;
+        justify-content: flex-end;
+    }
+
+    .row-actions .btn {
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        min-height: 2rem;
+        min-width: 4.6rem;
+        padding: 0.25rem 0.55rem;
+        white-space: nowrap;
+    }
+
+    .empty-row {
+        color: var(--lcd-muted);
+        text-align: center;
+    }
+
+    @media (max-width: 1200px) {
+        .lcd-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .lcd-filter-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .lcd-command-bar,
+        .lcd-panel-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .lcd-command-actions {
+            justify-content: stretch;
+        }
+
+        .lcd-command-actions .lcd-btn,
+        .lcd-command-actions form {
+            width: 100%;
+        }
+
+        .lcd-stat-grid,
+        .lcd-filter-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .lcd-filter-grid .d-flex {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lcd-page">
+    <div class="lcd-command-bar">
+        <div class="lcd-command-title">
+            <span class="title-icon"><i class="bi bi-grid-1x2"></i></span>
+            <div>
+                <h2>Assignments</h2>
+                <span>{{ products|length }} shown</span>
+            </div>
+        </div>
+        <div class="lcd-command-actions">
+            <a href="{{ request.get_full_path }}" class="btn lcd-btn lcd-btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>Refresh
+            </a>
+            <form method="post" class="m-0">
+                {% csrf_token %}
+                <button type="submit" name="action" value="sync_all" class="btn lcd-btn lcd-btn-primary">
+                    <i class="bi bi-broadcast-pin"></i>Sync All
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="lcd-stat-grid">
+        <div class="lcd-stat stat-products">
+            <div class="lcd-stat-top">
+                <div class="lcd-stat-label">Products</div>
+                <span class="lcd-stat-icon"><i class="bi bi-box"></i></span>
+            </div>
+            <div class="lcd-stat-value">{{ total_products }}</div>
+            <div class="lcd-stat-note">Catalog total</div>
+        </div>
+        <div class="lcd-stat stat-available">
+            <div class="lcd-stat-top">
+                <div class="lcd-stat-label">Available LCDs</div>
+                <span class="lcd-stat-icon"><i class="bi bi-display"></i></span>
+            </div>
+            <div class="lcd-stat-value">{{ available_display_count }}</div>
+            <div class="lcd-stat-note">LCD 1 to LCD 3</div>
+        </div>
+        <div class="lcd-stat stat-assigned">
+            <div class="lcd-stat-top">
+                <div class="lcd-stat-label">Assigned</div>
+                <span class="lcd-stat-icon"><i class="bi bi-check2-circle"></i></span>
+            </div>
+            <div class="lcd-stat-value">{{ assigned_products }}</div>
+            <div class="lcd-stat-note">Active links</div>
+        </div>
+        <div class="lcd-stat stat-open">
+            <div class="lcd-stat-top">
+                <div class="lcd-stat-label">Not Assigned</div>
+                <span class="lcd-stat-icon"><i class="bi bi-dash-circle"></i></span>
+            </div>
+            <div class="lcd-stat-value">{{ unassigned_products }}</div>
+            <div class="lcd-stat-note">Skipped by sync</div>
+        </div>
+    </div>
+
+    <div class="lcd-panel">
+        <div class="lcd-panel-header">
+            <div>
+                <h3>Products</h3>
+                <span>LCD assignment list</span>
+            </div>
+        </div>
+
+        <form method="get" class="lcd-filter-grid">
+            <div>
+                <label for="search" class="form-label">Product</label>
+                <input type="text" name="search" id="search" class="form-control" placeholder="Search product..." value="{{ search_query }}">
+            </div>
+            <div>
+                <label for="category" class="form-label">Category</label>
+                <select name="category" id="category" class="form-select">
+                    <option value="">All categories</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat }}" {% if category_filter == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="lcd_id" class="form-label">LCD ID</label>
+                <select name="lcd_id" id="lcd_id" class="form-select">
+                    <option value="">All displays</option>
+                    {% for display_id in available_lcd_ids %}
+                        <option value="{{ display_id }}" {% if lcd_filter == display_id|stringformat:"s" %}selected{% endif %}>LCD {{ display_id }}</option>
+                    {% endfor %}
+                    <option value="unassigned" {% if lcd_filter == "unassigned" %}selected{% endif %}>Not assigned</option>
+                </select>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn lcd-btn lcd-btn-primary flex-fill">
+                    <i class="bi bi-funnel"></i>Filter
+                </button>
+                <a href="{% url 'lcd_management' %}" class="btn lcd-btn lcd-btn-secondary">
+                    <i class="bi bi-x-lg"></i>Clear
+                </a>
+            </div>
+        </form>
+
+        <div class="lcd-table-wrap">
+            <table class="table lcd-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>LCD Assignment</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr class="{% if not product.is_lcd_assigned %}unassigned-row{% endif %}">
+                        <td>
+                            <div class="product-cell">
+                                <span class="product-cell-icon"><i class="bi bi-box-seam"></i></span>
+                                <span class="product-name">{{ product.name }}</span>
+                            </div>
+                        </td>
+                        <td><span class="category-chip">{{ product.category }}</span></td>
+                        <td><span class="price-value">${{ product.price|floatformat:2 }}</span></td>
+                        <td>
+                            <div class="assignment-control">
+                                <select name="lcd_id" class="form-select form-select-sm" form="lcd-row-{{ product.id }}">
+                                    <option value="0" {% if not product.is_lcd_assigned %}selected{% endif %}>Not assigned</option>
+                                    {% for display_id in product.assignment_lcd_ids %}
+                                        <option value="{{ display_id }}" {% if product.lcd_id == display_id %}selected{% endif %}>LCD {{ display_id }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% if product.is_lcd_assigned %}
+                                    <span class="assignment-badge assigned"><i class="bi bi-link-45deg"></i>LCD {{ product.lcd_id }}</span>
+                                {% else %}
+                                    <span class="assignment-badge unassigned"><i class="bi bi-dash-circle"></i>Not assigned</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="text-end">
+                            <form id="lcd-row-{{ product.id }}" method="post" class="row-actions">
+                                {% csrf_token %}
+                                <input type="hidden" name="product_id" value="{{ product.id }}">
+                                <button type="submit" name="action" value="update_assignment" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-check2 me-1"></i>Save
+                                </button>
+                                <button type="submit" name="action" value="sync_product" class="btn btn-outline-primary btn-sm" {% if not product.is_lcd_assigned %}disabled{% endif %}>
+                                    <i class="bi bi-arrow-repeat me-1"></i>Sync
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="empty-row py-4">No products found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

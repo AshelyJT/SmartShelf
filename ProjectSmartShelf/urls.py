@@ -21,4 +21,5 @@ urlpatterns = [
     path("price-history/export/", views.export_price_history_csv, name="export_price_history_csv"),
     path("manual-pricing/", views.manual_pricing_view, name="manual_pricing"),
     path("inventory-management/", views.inventory_management_view, name="inventory_management"),
+    path("lcd-management/", views.lcd_management_view, name="lcd_management"),
 ]
