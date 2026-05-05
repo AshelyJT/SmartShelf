@@ -154,3 +154,17 @@ class PriceHistory(models.Model):
 
     class Meta:
         ordering = ['-changed_at']  # Show newest changes first
+
+
+class SimulationState(models.Model):
+    """Shared operational date used by dashboard and checkout sessions."""
+
+    key = models.CharField(max_length=32, unique=True, default='active_day')
+    current_date = models.DateField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'simulation_state'
+
+    def __str__(self):
+        return f"{self.key}: {self.current_date}"

@@ -19,6 +19,12 @@ from decimal import Decimal
 from .models import DailyProductSales, PriceHistory
 from .apps import ProjectsmartshelfConfig
 from .ml_models.utils import prepare_input_for_tomorrow, predict_prices_batch
+from .simulation import (
+    clear_active_simulated_date,
+    get_active_day,
+    get_active_simulated_date,
+    set_active_simulated_date,
+)
 from .utils import send_price_update
 
 
@@ -52,10 +58,7 @@ def staff_logout_view(request):
 
 @staff_member_required(login_url='staff_login')
 def analytics_dashboard(request):
-    # Get simulated date from request, fallback to real today if None
-    simulated_today = getattr(request, 'simulated_date', None)
-    if simulated_today is None:
-        simulated_today = timezone.now().date()
+    simulated_today = get_active_day(request)
     
     yesterday = simulated_today - timedelta(days=1)
     
@@ -396,10 +399,9 @@ def pricing_dashboard(request):
 def close_day_advance(request):
     if request.method == 'POST':
         try:
-            # Get the current simulated date from session
-            simulated_date_str = request.session.get('simulated_date')
-            if simulated_date_str:
-                current_date = datetime.datetime.strptime(simulated_date_str, '%Y-%m-%d').date()
+            current_date = get_active_simulated_date(request)
+            if current_date:
+                set_active_simulated_date(request, current_date)
             else:
                 # No simulated date set yet – use the latest transaction date or today
                 from checkout.models import LiveTransaction
@@ -409,7 +411,7 @@ def close_day_advance(request):
                 else:
                     current_date = timezone.now().date()
                 # Set the simulated date to this starting point
-                request.session['simulated_date'] = current_date.strftime('%Y-%m-%d')
+                set_active_simulated_date(request, current_date)
 
             print(f"DEBUG: Closing day for {current_date}")
 
@@ -418,7 +420,7 @@ def close_day_advance(request):
 
             # Advance to the next day
             next_date = current_date + datetime.timedelta(days=1)
-            request.session['simulated_date'] = next_date.strftime('%Y-%m-%d')
+            set_active_simulated_date(request, next_date)
             print(f"DEBUG: Advanced to {next_date}")
 
             return JsonResponse({
@@ -437,8 +439,7 @@ def close_day_advance(request):
 @staff_member_required(login_url='staff_login')
 def reset_date(request):
     if request.method == 'POST':
-        if 'simulated_date' in request.session:
-            del request.session['simulated_date']
+        clear_active_simulated_date(request)
         return JsonResponse({'success': True})
     return JsonResponse({'success': False})
 
