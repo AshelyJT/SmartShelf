@@ -56,14 +56,12 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'recommendations' %}active{% endif %}" 
+                <a class="nav-link nav-link-with-badge {% if request.resolver_match.url_name == 'recommendations' %}active{% endif %}" 
                 href="{% url 'recommendations' %}">
-                    <i class="bi bi-lightbulb"></i> Recommendations
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="#">
-                    <i class="bi bi-gear"></i> Settings
+                    <span class="nav-link-label"><i class="bi bi-lightbulb"></i> Recommendations</span>
+                    {% if recommendations_count %}
+                    <span class="recommendation-badge" aria-label="{{ recommendations_count }} recommendations">{{ recommendations_count }}</span>
+                    {% endif %}
                 </a>
             </li>
         </ul>

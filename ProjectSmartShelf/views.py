@@ -19,6 +19,7 @@ from decimal import Decimal
 from .models import DailyProductSales, PriceHistory, ScheduledPromotion
 from .apps import ProjectsmartshelfConfig
 from .ml_models.utils import prepare_input_for_tomorrow, predict_prices_batch
+from .recommendations import build_recommendations
 from .simulation import (
     clear_active_simulated_date,
     get_active_day,
@@ -187,7 +188,7 @@ def analytics_dashboard(request):
         })
 
     latest_promotions = prepare_promotions_for_display(
-        ScheduledPromotion.objects.select_related('product', 'created_by').order_by('-created_at')[:8],
+        ScheduledPromotion.objects.select_related('product', 'created_by').order_by('-created_at')[:4],
         effective_at,
     )
     
@@ -577,78 +578,8 @@ def recommendations_page(request):
         simulated_today = timezone.now().date()
     process_promotions_for_request(request)
 
-    # Run AI batch prediction (reuse existing function)
-    raw_results = predict_prices_batch(base_date=simulated_today)
-
-    recommendations = []
-    for product, raw_ai_price in raw_results:
-        current_price = product.price if product.price else Decimal('0.00')
-        ai_price = Decimal(str(raw_ai_price)).quantize(Decimal('0.01'))
-        expiry_date = product.expiry_date
-        days_until_expiry = None
-        if expiry_date:
-            days_until_expiry = (expiry_date - simulated_today).days
-
-        # Determine recommendation type
-        rec_type = None
-        reason = ""
-        urgency = "low"  # low, medium, high
-
-        # Price change recommendation
-        price_diff_pct = 0
-        if current_price > 0:
-            price_diff_pct = ((ai_price - current_price) / current_price) * 100
-
-        # Expiry-based recommendations
-        if days_until_expiry is not None and days_until_expiry <= 7:
-            if days_until_expiry <= 2:
-                urgency = "high"
-                rec_type = "clearance"
-                reason = f"Expires in {days_until_expiry} days – urgent markdown"
-            else:
-                urgency = "medium"
-                rec_type = "markdown"
-                reason = f"Expires in {days_until_expiry} days – suggest discount"
-        # Price increase if AI price > current by > 5%
-        elif ai_price > current_price and price_diff_pct > 5:
-            rec_type = "price_increase"
-            reason = f"AI suggests +{price_diff_pct:.0f}% price increase"
-            urgency = "medium"
-        # Price decrease if AI price < current by > 5%
-        elif ai_price < current_price and price_diff_pct < -5:
-            rec_type = "price_decrease"
-            reason = f"AI suggests {price_diff_pct:.0f}% price decrease"
-            urgency = "medium"
-        # Restock recommendation based on sales velocity (placeholder)
-        # For now, simple: if product has no sales in last 3 days? Use dummy logic.
-        # We'll add a simple check: if total units sold in recent summaries < 5, suggest restock.
-        else:
-            # Check sales volume from DailyProductSales (last 7 days)
-            from .models import DailyProductSales
-            recent_sales = DailyProductSales.objects.filter(
-                product_name=product.name,
-                date__gte=simulated_today - datetime.timedelta(days=7)
-            ).aggregate(total=Sum('units_sold'))['total'] or 0
-            if recent_sales < 5 and current_price > 0:
-                rec_type = "restock"
-                reason = f"Low sales velocity ({recent_sales} units in 7 days) – review stock"
-                urgency = "low"
-            else:
-                continue  # no recommendation
-
-        recommendations.append({
-            'product': product,
-            'current_price': current_price,
-            'ai_price': ai_price,
-            'days_until_expiry': days_until_expiry,
-            'rec_type': rec_type,
-            'reason': reason,
-            'urgency': urgency,
-        })
-
-    # Sort by urgency: high -> medium -> low
-    urgency_order = {'high': 0, 'medium': 1, 'low': 2}
-    recommendations.sort(key=lambda x: urgency_order.get(x['urgency'], 3))
+    recommendations = build_recommendations(simulated_today)
+    request._recommendations_count = len(recommendations)
 
     context = {
         'recommendations': recommendations,
@@ -903,7 +834,7 @@ def promotions_view(request):
             messages.success(
                 request,
                 (
-                    f"Processed promotions for {effective_at:%Y-%m-%d %H:%M}: "
+                    f"Processed promotions for {effective_at:%Y-%m-%d %H:%M:%S}: "
                     f"{results['activated']} activated, {results['reverted']} reverted."
                 ),
             )
@@ -938,22 +869,40 @@ def promotions_view(request):
             end_date = parse_date(request.POST.get('end_date', '').strip())
             end_time_raw = request.POST.get('end_time', '').strip()
             end_time = parse_time(end_time_raw) if end_time_raw else None
+            start_delay_seconds_raw = request.POST.get('start_delay_seconds', '').strip()
             duration_minutes_raw = request.POST.get('duration_minutes', '').strip()
+            duration_seconds_raw = request.POST.get('duration_seconds', '').strip()
             promo_price_raw = request.POST.get('promotional_price', '').strip()
             discount_percent_raw = request.POST.get('discount_percent', '').strip()
             discount_fixed_raw = request.POST.get('discount_fixed', '').strip()
+
+            if start_delay_seconds_raw:
+                try:
+                    start_delay_seconds = int(start_delay_seconds_raw)
+                    if start_delay_seconds < 0:
+                        raise ValueError
+                except ValueError:
+                    messages.error(request, "Start delay must be zero or a positive number of seconds.")
+                    return redirect('promotions')
+
+                starts_at = effective_at + datetime.timedelta(seconds=start_delay_seconds)
+                start_date = starts_at.date()
+                start_time = starts_at.time().replace(microsecond=0)
 
             if not start_date:
                 messages.error(request, "Start date is required.")
                 return redirect('promotions')
 
-            if duration_minutes_raw:
+            duration_supplied = bool(duration_minutes_raw or duration_seconds_raw)
+            if duration_supplied:
                 try:
-                    duration_minutes = int(duration_minutes_raw)
-                    if duration_minutes <= 0:
+                    duration_minutes = int(duration_minutes_raw) if duration_minutes_raw else 0
+                    duration_seconds = int(duration_seconds_raw) if duration_seconds_raw else 0
+                    duration_total_seconds = (duration_minutes * 60) + duration_seconds
+                    if duration_minutes < 0 or duration_seconds < 0 or duration_total_seconds <= 0:
                         raise ValueError
                 except ValueError:
-                    messages.error(request, "Duration must be a positive number of minutes.")
+                    messages.error(request, "Duration must be a positive number of seconds or minutes.")
                     return redirect('promotions')
 
                 if not start_time:
@@ -961,9 +910,13 @@ def promotions_view(request):
                     return redirect('promotions')
 
                 starts_at = datetime.datetime.combine(start_date, start_time)
-                ends_at = starts_at + datetime.timedelta(minutes=duration_minutes)
+                ends_at = starts_at + datetime.timedelta(seconds=duration_total_seconds)
                 end_date = ends_at.date()
-                end_time = ends_at.time().replace(second=0, microsecond=0)
+                end_time = ends_at.time().replace(microsecond=0)
+            elif start_delay_seconds_raw and start_time and not end_time:
+                if not end_date or end_date < start_date:
+                    end_date = start_date
+                end_time = datetime.time.max
             elif start_time or end_time:
                 if not start_time or not end_time:
                     messages.error(request, "Timed promotions need both start and end times.")
@@ -1060,7 +1013,7 @@ def promotions_view(request):
         'effective_at': effective_at,
         'active_simulated_date': get_active_simulated_date(request),
         'default_start_date': effective_date.strftime('%Y-%m-%d'),
-        'default_start_time': effective_at.strftime('%H:%M'),
+        'default_start_time': effective_at.strftime('%H:%M:%S'),
     }
     return render(request, 'promotions.html', context)
 

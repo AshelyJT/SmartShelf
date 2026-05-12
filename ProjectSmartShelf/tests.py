@@ -32,6 +32,31 @@ class LCDPayloadFormatTests(TestCase):
         self.assertEqual(payload, 'Milk|12.50')
 
 
+class SidebarRecommendationBadgeTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='staff',
+            password='password123',
+            is_staff=True,
+        )
+        self.client.login(username='staff', password='password123')
+
+    @patch('ProjectSmartShelf.recommendations.recommendation_count', return_value=3)
+    def test_sidebar_shows_recommendation_count_badge(self, mock_recommendation_count):
+        response = self.client.get(reverse('staff_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'recommendation-badge')
+        self.assertContains(response, '>3<')
+
+    @patch('ProjectSmartShelf.recommendations.recommendation_count', return_value=0)
+    def test_sidebar_hides_badge_when_no_recommendations(self, mock_recommendation_count):
+        response = self.client.get(reverse('staff_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'recommendation-badge')
+
+
 class ScheduledPromotionTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -192,6 +217,49 @@ class ScheduledPromotionTests(TestCase):
         self.assertEqual(promotion.end_date, expected_end.date())
         self.assertEqual(promotion.end_time, expected_end.time().replace(second=0, microsecond=0))
         self.assertEqual(promotion.status, ScheduledPromotion.STATUS_ACTIVE)
+
+    @patch('ProjectSmartShelf.utils.send_price_update', return_value=True)
+    def test_promotions_view_accepts_start_delay_and_duration_seconds(self, mock_send_price_update):
+        effective_at = ScheduledPromotion._combine_schedule(
+            self.today,
+            datetime.time(8, 0, 10),
+        )
+
+        with patch('ProjectSmartShelf.views.get_effective_promotion_time', return_value=effective_at):
+            response = self.client.post(
+                reverse('promotions'),
+                {
+                    'action': 'create',
+                    'product_id': self.product.id,
+                    'title': 'Five second flash sale',
+                    'start_delay_seconds': '5',
+                    'duration_seconds': '10',
+                    'promotional_price': '8.25',
+                },
+            )
+
+        self.assertRedirects(response, reverse('promotions'))
+        self.product.refresh_from_db()
+        promotion = ScheduledPromotion.objects.get(product=self.product)
+        self.assertEqual(self.product.price, Decimal('12.50'))
+        self.assertEqual(promotion.status, ScheduledPromotion.STATUS_SCHEDULED)
+        self.assertEqual(promotion.start_date, self.today)
+        self.assertEqual(promotion.start_time, datetime.time(8, 0, 15))
+        self.assertEqual(promotion.end_date, self.today)
+        self.assertEqual(promotion.end_time, datetime.time(8, 0, 25))
+        mock_send_price_update.assert_not_called()
+
+        ScheduledPromotion.process_due_promotions(effective_at + datetime.timedelta(seconds=5))
+        self.product.refresh_from_db()
+        promotion.refresh_from_db()
+        self.assertEqual(self.product.price, Decimal('8.25'))
+        self.assertEqual(promotion.status, ScheduledPromotion.STATUS_ACTIVE)
+
+        ScheduledPromotion.process_due_promotions(effective_at + datetime.timedelta(seconds=16))
+        self.product.refresh_from_db()
+        promotion.refresh_from_db()
+        self.assertEqual(self.product.price, Decimal('12.50'))
+        self.assertEqual(promotion.status, ScheduledPromotion.STATUS_EXPIRED)
 
     def test_promotion_countdown_uses_supplied_simulated_time(self):
         promotion = ScheduledPromotion.objects.create(

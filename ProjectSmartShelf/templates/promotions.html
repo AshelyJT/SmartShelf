@@ -212,7 +212,7 @@
             <div>
                 <h2>Schedule Promotion</h2>
                 <span class="promo-clock-line">
-                    <span>Operational time: {{ effective_at|date:"M j, Y H:i" }}</span>
+                    <span>Operational time: {{ effective_at|date:"M j, Y H:i:s" }}</span>
                     {% if active_simulated_date %}
                         <span class="promo-clock-chip">Simulated date: {{ active_simulated_date|date:"Y-m-d" }}</span>
                     {% else %}
@@ -245,11 +245,15 @@
             </div>
             <div>
                 <label for="start_date" class="form-label">Start</label>
-                <input type="date" name="start_date" id="start_date" class="form-control" value="{{ default_start_date }}" required>
+                <input type="date" name="start_date" id="start_date" class="form-control" value="{{ default_start_date }}">
             </div>
             <div>
                 <label for="start_time" class="form-label">Start Time</label>
-                <input type="time" name="start_time" id="start_time" class="form-control" value="{{ default_start_time }}">
+                <input type="time" step="1" name="start_time" id="start_time" class="form-control" value="{{ default_start_time }}">
+            </div>
+            <div>
+                <label for="start_delay_seconds" class="form-label">Start In Sec</label>
+                <input type="number" step="1" min="0" name="start_delay_seconds" id="start_delay_seconds" class="form-control" placeholder="5">
             </div>
             <div>
                 <label for="end_date" class="form-label">End</label>
@@ -257,7 +261,7 @@
             </div>
             <div>
                 <label for="end_time" class="form-label">End Time</label>
-                <input type="time" name="end_time" id="end_time" class="form-control">
+                <input type="time" step="1" name="end_time" id="end_time" class="form-control">
             </div>
             <div>
                 <label for="promotional_price" class="form-label">Promo Price</label>
@@ -273,7 +277,11 @@
             </div>
             <div>
                 <label for="duration_minutes" class="form-label">Duration Min</label>
-                <input type="number" step="1" min="1" name="duration_minutes" id="duration_minutes" class="form-control" placeholder="60">
+                <input type="number" step="1" min="0" name="duration_minutes" id="duration_minutes" class="form-control" placeholder="1">
+            </div>
+            <div>
+                <label for="duration_seconds" class="form-label">Duration Sec</label>
+                <input type="number" step="1" min="0" name="duration_seconds" id="duration_seconds" class="form-control" placeholder="30">
             </div>
             <div class="d-flex align-items-end">
                 <button type="submit" class="btn btn-primary promo-action w-100">
@@ -343,10 +351,10 @@
                         <td>
                             {{ promotion.start_date|date:"M j, Y" }}
                             {% if promotion.start_time %}
-                                <span class="promo-subtext">{{ promotion.start_time|time:"H:i" }}</span>
+                                <span class="promo-subtext">{{ promotion.start_time|time:"H:i:s" }}</span>
                             {% endif %}
                             <span class="promo-subtext">
-                                to {{ promotion.end_date|date:"M j, Y" }}{% if promotion.end_time %} {{ promotion.end_time|time:"H:i" }}{% endif %}
+                                to {{ promotion.end_date|date:"M j, Y" }}{% if promotion.end_time %} {{ promotion.end_time|time:"H:i:s" }}{% endif %}
                             </span>
                         </td>
                         <td>

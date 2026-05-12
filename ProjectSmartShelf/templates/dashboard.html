@@ -360,40 +360,6 @@
 
 <div class="card shadow-sm mb-4">
     <div class="card-body">
-        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
-            <div>
-                <h5 class="card-title section-heading">Latest Promotions</h5>
-                <p class="mb-0" style="color: #adbac7 !important;">Newest scheduled and active price events.</p>
-            </div>
-            <div class="promotion-meta">Clock: {{ promotion_effective_at|date:"Y-m-d H:i" }}</div>
-        </div>
-        <div class="promotion-strip">
-            {% for promotion in latest_promotions %}
-                <div class="promotion-card {{ promotion.status }}">
-                    <div class="promotion-product">{{ promotion.product.name }}</div>
-                    <div class="promotion-meta">{{ promotion.display_name }}</div>
-                    <span class="promotion-status {{ promotion.status }}">{{ promotion.get_status_display }}</span>
-                    <div class="promotion-meta mt-2">${{ promotion.base_price|floatformat:2 }} to ${{ promotion.promotional_price|floatformat:2 }}</div>
-                    {% if promotion.countdown_target_iso %}
-                        <div class="promotion-countdown-label">{{ promotion.countdown_label }}</div>
-                        <div class="promotion-countdown js-promotion-countdown" data-countdown-seconds="{{ promotion.countdown_seconds }}">--:--</div>
-                    {% else %}
-                        <div class="promotion-countdown-label">Status</div>
-                        <div class="promotion-countdown">Closed</div>
-                    {% endif %}
-                </div>
-            {% empty %}
-                <div class="promotion-card">
-                    <div class="promotion-product">No promotions yet</div>
-                    <div class="promotion-meta">Scheduled promotions will appear here.</div>
-                </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
         <h5 class="card-title">Product Demand Trends</h5>
         <style>
             .chart-container {
@@ -471,6 +437,42 @@
         </div>
     </div>
 </div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+            <div>
+                <h5 class="card-title section-heading">Latest Promotions</h5>
+                <p class="mb-0" style="color: #adbac7 !important;">Newest scheduled and active price events.</p>
+            </div>
+            <div class="promotion-meta">Clock: {{ promotion_effective_at|date:"Y-m-d H:i:s" }}</div>
+        </div>
+        <div class="promotion-strip">
+            {% for promotion in latest_promotions %}
+                <div class="promotion-card {{ promotion.status }}">
+                    <div class="promotion-product">{{ promotion.product.name }}</div>
+                    <div class="promotion-meta">{{ promotion.display_name }}</div>
+                    <span class="promotion-status {{ promotion.status }}">{{ promotion.get_status_display }}</span>
+                    <div class="promotion-meta mt-2">${{ promotion.base_price|floatformat:2 }} to ${{ promotion.promotional_price|floatformat:2 }}</div>
+                    {% if promotion.countdown_target_iso %}
+                        <div class="promotion-countdown-label">{{ promotion.countdown_label }}</div>
+                        <div class="promotion-countdown js-promotion-countdown" data-countdown-seconds="{{ promotion.countdown_seconds }}">--:--</div>
+                    {% else %}
+                        <div class="promotion-countdown-label">Status</div>
+                        <div class="promotion-countdown">Closed</div>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <div class="promotion-card">
+                    <div class="promotion-product">No promotions yet</div>
+                    <div class="promotion-meta">Scheduled promotions will appear here.</div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+
 
 <div class="card section-card shadow-sm mb-4">
     <div class="card-body">

@@ -155,7 +155,7 @@ class PriceHistory(models.Model):
         return f"{self.product.name} - {self.changed_at.strftime('%Y-%m-%d %H:%M')} by {self.changed_by.username if self.changed_by else 'System'}"
 
     class Meta:
-        ordering = ['-changed_at']  # Show newest changes first
+        ordering = ['-changed_at', '-id']  # Show newest changes first
 
 
 class ScheduledPromotion(models.Model):
