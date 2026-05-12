@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DailyProductSales, ProductLCDMapping
+from .models import DailyProductSales, ProductLCDMapping, ScheduledPromotion
 import datetime
 
 @admin.register(DailyProductSales)
@@ -52,3 +52,36 @@ class DailyProductSalesAdmin(admin.ModelAdmin):
 class ProductLCDMappingAdmin(admin.ModelAdmin):
     list_display = ['product', 'i2c_address']
     search_fields = ['product__name', 'i2c_address']
+
+
+@admin.register(ScheduledPromotion)
+class ScheduledPromotionAdmin(admin.ModelAdmin):
+    list_display = [
+        'display_name',
+        'product',
+        'status',
+        'promotional_price',
+        'start_date',
+        'start_time',
+        'end_date',
+        'end_time',
+        'pre_promotion_price',
+    ]
+    list_filter = ['status', 'start_date', 'end_date', 'start_time', 'end_time']
+    search_fields = ['title', 'product__name']
+    readonly_fields = ['pre_promotion_price', 'applied_at', 'reverted_at', 'created_at', 'updated_at']
+    actions = ['process_due_promotions']
+
+    def process_due_promotions(self, request, queryset):
+        from django.utils import timezone
+
+        results = ScheduledPromotion.process_due_promotions(timezone.localdate())
+        self.message_user(
+            request,
+            (
+                f"Processed promotions: {results['activated']} activated, "
+                f"{results['reverted']} reverted."
+            ),
+        )
+
+    process_due_promotions.short_description = "Process due promotions"

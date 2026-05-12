@@ -225,6 +225,70 @@
     .section-heading {
         margin-bottom: 0;
     }
+    .promotion-strip {
+        display: grid;
+        gap: 0.85rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .promotion-card {
+        background: #181826;
+        border: 1px solid #2d2d3a;
+        border-radius: 0.5rem;
+        padding: 0.9rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .promotion-card.active {
+        border-color: #45d66f;
+        box-shadow: 0 0 0 1px rgba(69, 214, 111, 0.28), 0 0 24px rgba(69, 214, 111, 0.22);
+    }
+    .promotion-card.scheduled {
+        border-color: #ffb84d;
+        box-shadow: 0 0 0 1px rgba(255, 184, 77, 0.28), 0 0 24px rgba(255, 184, 77, 0.22);
+    }
+    .promotion-product {
+        color: #ffffff;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    .promotion-meta {
+        color: #adbac7;
+        font-size: 0.8rem;
+    }
+    .promotion-countdown-label {
+        color: #8b949e;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        margin-top: 0.8rem;
+        text-transform: uppercase;
+    }
+    .promotion-countdown {
+        color: #45d6c5;
+        font-size: 1.05rem;
+        font-weight: 800;
+        margin-top: 0.15rem;
+    }
+    .promotion-status {
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.72rem;
+        font-weight: 800;
+        margin-top: 0.45rem;
+        padding: 0.2rem 0.55rem;
+    }
+    .promotion-status.active {
+        background: rgba(69, 214, 197, 0.14);
+        color: #a6fff4;
+    }
+    .promotion-status.scheduled {
+        background: rgba(90, 162, 255, 0.14);
+        color: #bad9ff;
+    }
+    .promotion-status.expired,
+    .promotion-status.cancelled {
+        background: rgba(148, 163, 184, 0.14);
+        color: #d1d9e5;
+    }
     @media (max-width: 768px) {
         .metric-value {
             font-size: 1.25rem;
@@ -290,6 +354,40 @@
                 </div>
             </div>
             <div class="metric-note">Most recent summary refresh time.</div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+            <div>
+                <h5 class="card-title section-heading">Latest Promotions</h5>
+                <p class="mb-0" style="color: #adbac7 !important;">Newest scheduled and active price events.</p>
+            </div>
+            <div class="promotion-meta">Clock: {{ promotion_effective_at|date:"Y-m-d H:i" }}</div>
+        </div>
+        <div class="promotion-strip">
+            {% for promotion in latest_promotions %}
+                <div class="promotion-card {{ promotion.status }}">
+                    <div class="promotion-product">{{ promotion.product.name }}</div>
+                    <div class="promotion-meta">{{ promotion.display_name }}</div>
+                    <span class="promotion-status {{ promotion.status }}">{{ promotion.get_status_display }}</span>
+                    <div class="promotion-meta mt-2">${{ promotion.base_price|floatformat:2 }} to ${{ promotion.promotional_price|floatformat:2 }}</div>
+                    {% if promotion.countdown_target_iso %}
+                        <div class="promotion-countdown-label">{{ promotion.countdown_label }}</div>
+                        <div class="promotion-countdown js-promotion-countdown" data-countdown-seconds="{{ promotion.countdown_seconds }}">--:--</div>
+                    {% else %}
+                        <div class="promotion-countdown-label">Status</div>
+                        <div class="promotion-countdown">Closed</div>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <div class="promotion-card">
+                    <div class="promotion-product">No promotions yet</div>
+                    <div class="promotion-meta">Scheduled promotions will appear here.</div>
+                </div>
+            {% endfor %}
         </div>
     </div>
 </div>
@@ -618,6 +716,51 @@
             }).then(() => window.location.reload());
         }
     }
+
+    function formatPromotionCountdown(seconds) {
+        if (seconds <= 0) {
+            return 'now';
+        }
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        if (days > 0) {
+            return `${days}d ${hours}h ${minutes}m`;
+        }
+        if (hours > 0) {
+            return `${hours}h ${minutes}m ${secs}s`;
+        }
+        return `${minutes}m ${secs}s`;
+    }
+
+    function setupPromotionCountdowns() {
+        const countdowns = Array.from(document.querySelectorAll('.js-promotion-countdown'));
+        if (!countdowns.length) return;
+        const loadedAt = Date.now();
+
+        function tick() {
+            countdowns.forEach((node) => {
+                const initialSeconds = Number(node.dataset.countdownSeconds || 0);
+                const elapsedSeconds = Math.floor((Date.now() - loadedAt) / 1000);
+                const seconds = Math.max(0, initialSeconds - elapsedSeconds);
+                node.textContent = formatPromotionCountdown(seconds);
+            });
+        }
+
+        const futureCountdowns = countdowns
+            .map((node) => Number(node.dataset.countdownSeconds || 0))
+            .filter((seconds) => Number.isFinite(seconds) && seconds > 0);
+        if (futureCountdowns.length) {
+            const nextSeconds = Math.min(...futureCountdowns);
+            setTimeout(() => window.location.reload(), Math.max(1500, (nextSeconds * 1000) + 1500));
+        }
+
+        tick();
+        setInterval(tick, 1000);
+    }
+
+    setupPromotionCountdowns();
 </script>
 
 <script>

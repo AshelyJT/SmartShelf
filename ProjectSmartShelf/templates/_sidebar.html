@@ -32,6 +32,12 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'promotions' %}active{% endif %}" 
+                href="{% url 'promotions' %}">
+                    <i class="bi bi-tags"></i> Promotions
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'inventory_management' %}active{% endif %}" 
                 href="{% url 'inventory_management' %}">
                     <i class="bi bi-box-seam"></i> Inventory

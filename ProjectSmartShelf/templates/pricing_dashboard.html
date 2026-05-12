@@ -106,9 +106,8 @@
     <div class="card-body d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
         <div>
             <h5 class="card-title section-heading">AI Pricing Controls</h5>
-            <p class="mb-0">Apply multiple recommendations or review specific product actions below.</p>
         </div>
-        <form method="POST" class="m-0">
+        <form method="POST" class="m-0 d-flex flex-column flex-md-row gap-2 align-items-md-end">
             {% csrf_token %}
             <button type="submit" name="apply_all" class="btn btn-primary">Apply All AI Recommendations</button>
         </form>
@@ -152,7 +151,7 @@
                         <td>${{ item.ai_price|floatformat:2 }}</td>
                         <td><span class="{{ item.css_class }}">{{ item.icon|default:'' }} {{ item.status|default:'' }}</span></td>
                         <td>
-                            <form method="post" action="{% url 'apply_single_price' %}" style="display:inline;">
+                            <form id="ai-price-{{ item.product.id }}" method="post" action="{% url 'apply_single_price' %}" style="display:inline;">
                                 {% csrf_token %}
                                 <input type="hidden" name="product_id" value="{{ item.product.id }}">
                                 <input type="hidden" name="new_price" value="{{ item.ai_price }}">
@@ -162,7 +161,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center py-4">No AI pricing recommendations are available right now.</td>
+                        <td colspan="10" class="text-center py-4">No AI pricing recommendations are available right now.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

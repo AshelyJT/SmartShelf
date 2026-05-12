@@ -87,6 +87,10 @@
                 <label for="discount_value" class="form-label">Value</label>
                 <input type="number" step="0.01" name="discount_value" id="discount_value" class="form-control" placeholder="e.g., 10 for 10%" required>
             </div>
+            <div class="col-md-3">
+                <label for="bulk_reason" class="form-label">Reason</label>
+                <input type="text" name="price_change_reason" id="bulk_reason" class="form-control" placeholder="Category promotion">
+            </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">Apply Bulk Discount</button>
             </div>
@@ -130,6 +134,7 @@
                         <th>New Price</th>
                         <th>Discount %</th>
                         <th>Discount $</th>
+                        <th>Reason</th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -145,12 +150,13 @@
                             <td><input type="number" step="0.01" name="new_price" class="form-control form-control-sm" placeholder="New price"></td>
                             <td><input type="number" step="0.1" name="discount_percent" class="form-control form-control-sm" placeholder="% off"></td>
                             <td><input type="number" step="0.01" name="discount_fixed" class="form-control form-control-sm" placeholder="$ off"></td>
+                            <td><input type="text" name="price_change_reason" class="form-control form-control-sm" placeholder="Reason"></td>
                             <td><button type="submit" class="btn btn-primary btn-sm">Update</button></td>
                         </form>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center py-4">No products found.</td>
+                        <td colspan="8" class="text-center py-4">No products found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

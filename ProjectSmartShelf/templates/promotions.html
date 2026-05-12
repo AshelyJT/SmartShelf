@@ -1,0 +1,448 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Promotions{% endblock %}
+
+{% block page_title %}<i class="bi bi-tags me-2"></i>Promotions{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content { background-color: #10131c !important; }
+    .promo-page { color: #edf3fb; }
+    .promo-panel,
+    .promo-stat {
+        background: #1b2230;
+        border: 1px solid #2d3748;
+        border-radius: 8px;
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+    }
+    .promo-stat-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-bottom: 1rem;
+    }
+    .promo-stat { padding: 1rem; }
+    .promo-stat-label {
+        color: #9fb1c7;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .promo-stat-value {
+        color: #ffffff;
+        font-size: 1.85rem;
+        font-weight: 800;
+        line-height: 1;
+        margin-top: 0.65rem;
+    }
+    .promo-panel { margin-bottom: 1rem; overflow: hidden; }
+    .promo-panel-header {
+        align-items: center;
+        border-bottom: 1px solid #2d3748;
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+    }
+    .promo-panel-header h2 {
+        color: #ffffff;
+        font-size: 1rem;
+        margin: 0;
+    }
+    .promo-panel-header span {
+        color: #9fb1c7;
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.2rem;
+    }
+    .promo-form-grid,
+    .promo-filter-grid {
+        display: grid;
+        gap: 0.85rem;
+        padding: 1rem;
+    }
+    .promo-form-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .promo-filter-grid {
+        align-items: end;
+        border-bottom: 1px solid #2d3748;
+        grid-template-columns: minmax(220px, 1.2fr) minmax(160px, 0.7fr) auto;
+    }
+    .promo-page .form-label {
+        color: #cbd7e6 !important;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+    .promo-page .form-control,
+    .promo-page .form-select {
+        background-color: #111827 !important;
+        border: 1px solid #344256 !important;
+        border-radius: 8px;
+        color: #ffffff !important;
+        min-height: 2.5rem;
+    }
+    .promo-page .form-control::placeholder { color: #8292a8 !important; opacity: 1; }
+    .promo-page .form-control:focus,
+    .promo-page .form-select:focus {
+        border-color: #5aa2ff !important;
+        box-shadow: 0 0 0 0.2rem rgba(90, 162, 255, 0.18);
+    }
+    .promo-table {
+        color: #dce6f3 !important;
+        margin: 0;
+    }
+    .promo-table thead th {
+        background: #151d2a !important;
+        border-bottom: 1px solid #2d3748 !important;
+        color: #f8fafc !important;
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        padding: 0.7rem 0.85rem;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+    .promo-table tbody td {
+        background: #1b2230 !important;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.15) !important;
+        color: #dce6f3 !important;
+        padding: 0.7rem 0.85rem;
+        vertical-align: middle;
+    }
+    .promo-product {
+        color: #ffffff;
+        font-weight: 800;
+    }
+    .promo-subtext {
+        color: #9fb1c7;
+        display: block;
+        font-size: 0.78rem;
+        margin-top: 0.15rem;
+    }
+    .promo-clock-line {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .promo-clock-chip {
+        background: rgba(90, 162, 255, 0.14);
+        border: 1px solid rgba(90, 162, 255, 0.26);
+        border-radius: 999px;
+        color: #bad9ff;
+        display: inline-flex;
+        font-size: 0.76rem;
+        font-weight: 800;
+        padding: 0.22rem 0.6rem;
+    }
+    .status-badge,
+    .lcd-badge {
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.72rem;
+        font-weight: 800;
+        padding: 0.25rem 0.6rem;
+        white-space: nowrap;
+    }
+    .status-badge.scheduled { background: rgba(90, 162, 255, 0.13); border: 1px solid rgba(90, 162, 255, 0.25); color: #bad9ff; }
+    .status-badge.active { background: rgba(69, 214, 197, 0.14); border: 1px solid rgba(69, 214, 197, 0.3); color: #a6fff4; }
+    .status-badge.expired { background: rgba(148, 163, 184, 0.14); border: 1px solid rgba(148, 163, 184, 0.25); color: #d1d9e5; }
+    .status-badge.cancelled { background: rgba(255, 122, 122, 0.14); border: 1px solid rgba(255, 122, 122, 0.28); color: #ffc5c5; }
+    .lcd-badge {
+        background: rgba(255, 204, 102, 0.14);
+        border: 1px solid rgba(255, 204, 102, 0.3);
+        color: #ffe3a6;
+    }
+    .promo-action {
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        min-height: 2rem;
+        white-space: nowrap;
+    }
+    .promo-countdown {
+        color: #45d6c5;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+    @media (max-width: 1400px) {
+        .promo-form-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    @media (max-width: 992px) {
+        .promo-stat-grid,
+        .promo-form-grid,
+        .promo-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 680px) {
+        .promo-stat-grid,
+        .promo-form-grid,
+        .promo-filter-grid { grid-template-columns: 1fr; }
+        .promo-panel-header { align-items: stretch; flex-direction: column; }
+        .promo-panel-header form { width: 100%; }
+        .promo-panel-header .btn { width: 100%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="promo-page">
+    <div class="promo-stat-grid">
+        <div class="promo-stat">
+            <div class="promo-stat-label">Active</div>
+            <div class="promo-stat-value">{{ status_counts.active }}</div>
+        </div>
+        <div class="promo-stat">
+            <div class="promo-stat-label">Scheduled</div>
+            <div class="promo-stat-value">{{ status_counts.scheduled }}</div>
+        </div>
+        <div class="promo-stat">
+            <div class="promo-stat-label">Expired</div>
+            <div class="promo-stat-value">{{ status_counts.expired }}</div>
+        </div>
+        <div class="promo-stat">
+            <div class="promo-stat-label">Cancelled</div>
+            <div class="promo-stat-value">{{ status_counts.cancelled }}</div>
+        </div>
+    </div>
+
+    <div class="promo-panel">
+        <div class="promo-panel-header">
+            <div>
+                <h2>Schedule Promotion</h2>
+                <span class="promo-clock-line">
+                    <span>Operational time: {{ effective_at|date:"M j, Y H:i" }}</span>
+                    {% if active_simulated_date %}
+                        <span class="promo-clock-chip">Simulated date: {{ active_simulated_date|date:"Y-m-d" }}</span>
+                    {% else %}
+                        <span class="promo-clock-chip">Real date</span>
+                    {% endif %}
+                </span>
+            </div>
+            <form method="post" class="m-0">
+                {% csrf_token %}
+                <button type="submit" name="action" value="process_due" class="btn btn-outline-info promo-action">
+                    <i class="bi bi-arrow-repeat me-1"></i>Run Due
+                </button>
+            </form>
+        </div>
+        <form method="post" class="promo-form-grid">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create">
+            <div>
+                <label for="product_id" class="form-label">Product</label>
+                <select name="product_id" id="product_id" class="form-select" required>
+                    <option value="">Choose product</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}">{{ product.name }} - ${{ product.price|floatformat:2 }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="title" class="form-label">Title</label>
+                <input type="text" name="title" id="title" class="form-control" placeholder="Weekend sale">
+            </div>
+            <div>
+                <label for="start_date" class="form-label">Start</label>
+                <input type="date" name="start_date" id="start_date" class="form-control" value="{{ default_start_date }}" required>
+            </div>
+            <div>
+                <label for="start_time" class="form-label">Start Time</label>
+                <input type="time" name="start_time" id="start_time" class="form-control" value="{{ default_start_time }}">
+            </div>
+            <div>
+                <label for="end_date" class="form-label">End</label>
+                <input type="date" name="end_date" id="end_date" class="form-control" value="{{ default_start_date }}">
+            </div>
+            <div>
+                <label for="end_time" class="form-label">End Time</label>
+                <input type="time" name="end_time" id="end_time" class="form-control">
+            </div>
+            <div>
+                <label for="promotional_price" class="form-label">Promo Price</label>
+                <input type="number" step="0.01" min="0" name="promotional_price" id="promotional_price" class="form-control" placeholder="9.99">
+            </div>
+            <div>
+                <label for="discount_percent" class="form-label">Discount %</label>
+                <input type="number" step="0.1" min="0" name="discount_percent" id="discount_percent" class="form-control" placeholder="10">
+            </div>
+            <div>
+                <label for="discount_fixed" class="form-label">Discount $</label>
+                <input type="number" step="0.01" min="0" name="discount_fixed" id="discount_fixed" class="form-control" placeholder="2.00">
+            </div>
+            <div>
+                <label for="duration_minutes" class="form-label">Duration Min</label>
+                <input type="number" step="1" min="1" name="duration_minutes" id="duration_minutes" class="form-control" placeholder="60">
+            </div>
+            <div class="d-flex align-items-end">
+                <button type="submit" class="btn btn-primary promo-action w-100">
+                    <i class="bi bi-calendar-plus me-1"></i>Schedule
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="promo-panel">
+        <div class="promo-panel-header">
+            <div>
+                <h2>Promotion Calendar</h2>
+                <span>{{ promotions|length }} shown</span>
+            </div>
+        </div>
+        <form method="get" class="promo-filter-grid">
+            <div>
+                <label for="search" class="form-label">Search</label>
+                <input type="text" name="search" id="search" class="form-control" value="{{ search_query }}" placeholder="Product or title">
+            </div>
+            <div>
+                <label for="status" class="form-label">Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">All statuses</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary promo-action flex-fill">
+                    <i class="bi bi-funnel me-1"></i>Filter
+                </button>
+                <a href="{% url 'promotions' %}" class="btn btn-secondary promo-action">
+                    <i class="bi bi-x-lg me-1"></i>Clear
+                </a>
+            </div>
+        </form>
+        <div class="table-responsive">
+            <table class="table promo-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Status</th>
+                        <th>Base</th>
+                        <th>Promo</th>
+                        <th>Schedule</th>
+                        <th>Countdown</th>
+                        <th>LCD</th>
+                        <th>Created By</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for promotion in promotions %}
+                    <tr>
+                        <td>
+                            <span class="promo-product">{{ promotion.product.name }}</span>
+                            <span class="promo-subtext">{{ promotion.display_name }}</span>
+                        </td>
+                        <td><span class="status-badge {{ promotion.status }}">{{ promotion.get_status_display }}</span></td>
+                        <td>
+                            ${{ promotion.base_price|floatformat:2 }}
+                        </td>
+                        <td><strong>${{ promotion.promotional_price|floatformat:2 }}</strong></td>
+                        <td>
+                            {{ promotion.start_date|date:"M j, Y" }}
+                            {% if promotion.start_time %}
+                                <span class="promo-subtext">{{ promotion.start_time|time:"H:i" }}</span>
+                            {% endif %}
+                            <span class="promo-subtext">
+                                to {{ promotion.end_date|date:"M j, Y" }}{% if promotion.end_time %} {{ promotion.end_time|time:"H:i" }}{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if promotion.countdown_target_iso %}
+                                <span class="promo-subtext">{{ promotion.countdown_label }}</span>
+                                <span class="promo-countdown js-promotion-countdown" data-countdown-seconds="{{ promotion.countdown_seconds }}">--:--</span>
+                            {% else %}
+                                <span class="promo-subtext">Closed</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if promotion.status == "active" %}
+                                <span class="lcd-badge"><i class="bi bi-display me-1"></i>PROMO</span>
+                            {% else %}
+                                <span class="promo-subtext">Standard</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if promotion.created_by %}
+                                {{ promotion.created_by.username }}
+                            {% else %}
+                                System
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if promotion.status == "active" or promotion.status == "scheduled" %}
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="cancel">
+                                    <input type="hidden" name="promotion_id" value="{{ promotion.id }}">
+                                    <button type="submit" class="btn btn-outline-warning promo-action">
+                                        {% if promotion.status == "active" %}End Now{% else %}Cancel{% endif %}
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="promo-subtext">Closed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">No promotions found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function formatPromotionCountdown(seconds) {
+        if (seconds <= 0) {
+            return 'now';
+        }
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        if (days > 0) {
+            return `${days}d ${hours}h ${minutes}m`;
+        }
+        if (hours > 0) {
+            return `${hours}h ${minutes}m ${secs}s`;
+        }
+        return `${minutes}m ${secs}s`;
+    }
+
+    function setupPromotionCountdowns() {
+        const countdowns = Array.from(document.querySelectorAll('.js-promotion-countdown'));
+        if (!countdowns.length) return;
+        const loadedAt = Date.now();
+
+        function tick() {
+            countdowns.forEach((node) => {
+                const initialSeconds = Number(node.dataset.countdownSeconds || 0);
+                const elapsedSeconds = Math.floor((Date.now() - loadedAt) / 1000);
+                const seconds = Math.max(0, initialSeconds - elapsedSeconds);
+                node.textContent = formatPromotionCountdown(seconds);
+            });
+        }
+
+        const futureCountdowns = countdowns
+            .map((node) => Number(node.dataset.countdownSeconds || 0))
+            .filter((seconds) => Number.isFinite(seconds) && seconds > 0);
+        if (futureCountdowns.length) {
+            const nextSeconds = Math.min(...futureCountdowns);
+            setTimeout(() => window.location.reload(), Math.max(1500, (nextSeconds * 1000) + 1500));
+        }
+
+        tick();
+        setInterval(tick, 1000);
+    }
+
+    setupPromotionCountdowns();
+</script>
+{% endblock %}

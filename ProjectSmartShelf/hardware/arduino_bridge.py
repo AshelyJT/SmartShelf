@@ -67,8 +67,17 @@ def update_product_lcd(product):
         mapping = product.lcd_mapping
     except AttributeError:  # if no mapping exists
         return
+    from ProjectSmartShelf.models import ScheduledPromotion
+    from ProjectSmartShelf.utils import format_lcd_price
+
     address = mapping.i2c_address
-    message = f"{product.name}|{product.price}"
+    product_name = product.name
+    if ScheduledPromotion.objects.filter(
+        product=product,
+        status=ScheduledPromotion.STATUS_ACTIVE,
+    ).exists():
+        product_name = f"{product.name} (PROMO)"
+    message = f"{product_name}|{format_lcd_price(product.price)}"
     send_to_lcd(address, message)
 
 def close_serial():

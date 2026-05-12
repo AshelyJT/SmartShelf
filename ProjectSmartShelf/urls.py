@@ -20,6 +20,7 @@ urlpatterns = [
     path("price-history/", views.price_history_view, name="price_history"),
     path("price-history/export/", views.export_price_history_csv, name="export_price_history_csv"),
     path("manual-pricing/", views.manual_pricing_view, name="manual_pricing"),
+    path("promotions/", views.promotions_view, name="promotions"),
     path("inventory-management/", views.inventory_management_view, name="inventory_management"),
     path("lcd-management/", views.lcd_management_view, name="lcd_management"),
 ]

@@ -68,7 +68,7 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <form method="get" class="d-flex">
-                    <input type="text" name="search" class="form-control search-box me-2" placeholder="Search by product or staff..." value="{{ search_query }}">
+                    <input type="text" name="search" class="form-control search-box me-2" placeholder="Search product, staff, or reason..." value="{{ search_query }}">
                     <button type="submit" class="btn btn-primary">Search</button>
                 </form>
             </div>
@@ -128,13 +128,14 @@
                         <th>Old Price</th>
                         <th>New Price</th>
                         <th>Price Change</th>
+                        <th>Reason</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for history in page_obj %}
                     <tr>
                         <td>{{ history.product.name }}</td>
-                        <td>{{ history.changed_by.get_full_name|default:"System" }}</td>
+                        <td>{{ history.changed_by.get_full_name|default:"SmartShelf Admin" }}</td>
                         <td>{{ history.changed_at|date:"Y-m-d H:i" }}</td>
                         <td>${{ history.old_price|floatformat:2 }}</td>
                         <td>${{ history.new_price|floatformat:2 }}</td>
@@ -145,10 +146,11 @@
                                 </span>
                             {% endwith %}
                         </td>
+                        <td>{{ history.reason|default:"No reason recorded" }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-4">No price changes recorded yet.</td>
+                        <td colspan="7" class="text-center py-4">No price changes recorded yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

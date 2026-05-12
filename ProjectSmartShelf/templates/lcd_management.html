@@ -349,6 +349,13 @@
         color: #ffe2a3;
     }
 
+    .assignment-badge.promo {
+        background: rgba(69, 214, 197, 0.14);
+        border: 1px solid rgba(69, 214, 197, 0.3);
+        color: #a6fff4;
+        margin-left: 0.5rem;
+    }
+
     .price-value {
         color: #ffffff;
         font-size: 0.9rem;
@@ -484,7 +491,7 @@
                 <span class="lcd-stat-icon"><i class="bi bi-dash-circle"></i></span>
             </div>
             <div class="lcd-stat-value">{{ unassigned_products }}</div>
-            <div class="lcd-stat-note">Skipped by sync</div>
+            <div class="lcd-stat-note">Skipped by sync{% if active_promotion_count %} | {{ active_promotion_count }} promo{% endif %}</div>
         </div>
     </div>
 
@@ -551,7 +558,12 @@
                             </div>
                         </td>
                         <td><span class="category-chip">{{ product.category }}</span></td>
-                        <td><span class="price-value">${{ product.price|floatformat:2 }}</span></td>
+                        <td>
+                            <span class="price-value">${{ product.price|floatformat:2 }}</span>
+                            {% if product.active_promotion %}
+                                <span class="assignment-badge promo"><i class="bi bi-tags"></i>PROMO</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <div class="assignment-control">
                                 <select name="lcd_id" class="form-select form-select-sm" form="lcd-row-{{ product.id }}">

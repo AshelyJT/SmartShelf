@@ -194,6 +194,7 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="product_id" value="{{ rec.product.id }}">
                                 <input type="hidden" name="new_price" value="{{ rec.ai_price }}">
+                                <input type="hidden" name="price_change_reason" value="{{ rec.reason }}">
                                 <button type="submit" class="btn btn-primary btn-sm">Apply Price</button>
                             </form>
                             {% else %}

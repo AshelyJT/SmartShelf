@@ -4,11 +4,28 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
 from django.urls import reverse_lazy, reverse
 from django.conf import settings
+from django.utils import timezone
 import json
+import datetime
+from ProjectSmartShelf.models import ScheduledPromotion
 from ProjectSmartShelf.simulation import get_active_day, get_active_simulated_date
 from .models import Product, LiveTransaction
 
 # Create your views here.
+def process_due_promotions(request):
+    current_time = timezone.localtime()
+    simulated_date = get_active_simulated_date(request)
+    if simulated_date:
+        effective_at = datetime.datetime.combine(
+            simulated_date,
+            current_time.time().replace(microsecond=0),
+        )
+        effective_at = timezone.make_aware(effective_at, timezone.get_current_timezone())
+    else:
+        effective_at = current_time.replace(microsecond=0)
+    ScheduledPromotion.process_due_promotions(effective_at)
+
+
 def get_checkout_date(request):
     simulated_date = get_active_simulated_date(request)
     current_date = simulated_date if simulated_date else get_active_day(request)
@@ -56,6 +73,7 @@ def checkout_logout_view(request):
 
 def checkout(request):
     """Main till interface."""
+    process_due_promotions(request)
     products = Product.objects.all()
     date_payload = get_checkout_date_payload(request)
    
@@ -75,6 +93,7 @@ def checkout(request):
 def process_transaction(request):
     if request.method == 'POST':
         try:
+            process_due_promotions(request)
             data = json.loads(request.body)
             product_id = data.get('product_id')
             quantity = int(data.get('quantity', 1))
@@ -125,6 +144,7 @@ def process_transaction(request):
 
 
 def get_products(request):
+    process_due_promotions(request)
     products = Product.objects.all()
     product_list = []
     for product in products:
