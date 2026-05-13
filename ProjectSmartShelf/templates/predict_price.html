@@ -187,7 +187,8 @@
         margin-bottom: 0.4rem;
     }
 
-    .predict-page .form-control {
+    .predict-page .form-control,
+    .predict-page .form-select {
         background-color: #111824 !important;
         border: 1px solid var(--predict-line) !important;
         border-radius: 8px;
@@ -200,11 +201,17 @@
         opacity: 1;
     }
 
-    .predict-page .form-control:focus {
+    .predict-page .form-control:focus,
+    .predict-page .form-select:focus {
         background-color: #131c2a !important;
         border-color: var(--predict-blue) !important;
         box-shadow: 0 0 0 0.2rem rgba(90, 162, 255, 0.18);
         color: #ffffff !important;
+    }
+
+    .predict-page .form-control[readonly] {
+        background-color: #151d2a !important;
+        color: #9baabe !important;
     }
 
     .form-actions {
@@ -304,9 +311,72 @@
         margin-top: 0.85rem;
     }
 
+    .advanced-panel {
+        margin-top: 1rem;
+    }
+
+    .advanced-feature-grid {
+        display: grid;
+        gap: 0.85rem;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        margin-top: 0.85rem;
+    }
+
+    .feature-preview {
+        background: #111824;
+        border: 1px solid var(--predict-line);
+        border-radius: 8px;
+        min-height: 4.6rem;
+        padding: 0.75rem;
+    }
+
+    .feature-preview span {
+        color: var(--predict-muted);
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.4rem;
+        text-transform: uppercase;
+    }
+
+    .feature-preview strong {
+        color: #ffffff;
+        display: block;
+        font-size: 1.05rem;
+    }
+
+    .advanced-result-row {
+        align-items: center;
+        border-top: 1px solid var(--predict-line);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.9rem;
+        justify-content: space-between;
+        margin-top: 1rem;
+        padding-top: 1rem;
+    }
+
+    .advanced-result-price {
+        color: #ffffff;
+        font-size: 1.8rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .advanced-result-note {
+        color: #b1bfd0;
+        font-size: 0.84rem;
+        margin-top: 0.35rem;
+    }
+
     @media (max-width: 1100px) {
         .predict-layout {
             grid-template-columns: 1fr;
+        }
+
+        .advanced-feature-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
     }
 
@@ -325,6 +395,10 @@
         }
 
         .predict-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .advanced-feature-grid {
             grid-template-columns: 1fr;
         }
 
@@ -368,27 +442,31 @@
 
             <form method="POST" class="predict-form">
                 {% csrf_token %}
+                <input type="hidden" name="prediction_mode" value="simple">
 
                 <div class="form-section">
                     <div class="section-label"><i class="bi bi-box-seam"></i>Product Details</div>
                     <div class="predict-grid">
                         <div>
-                            <label for="product_name" class="form-label">Product Name</label>
-                            <input type="text" id="product_name" name="product_name" class="form-control" list="product-options" placeholder="e.g. Milk 1L" value="{{ form_data.product_name }}" required>
-                            <datalist id="product-options">
+                            <label for="product_id" class="form-label">Product</label>
+                            <select id="product_id" name="product_id" class="form-select" required>
+                                <option value="">Select a product</option>
                                 {% for product in products %}
-                                    <option value="{{ product }}"></option>
+                                    <option
+                                        value="{{ product.id }}"
+                                        data-category="{{ product.category }}"
+                                        data-inventory="{{ product.inventory_level }}"
+                                        data-expiry="{{ product.expiry_date|date:'Y-m-d' }}"
+                                        {% if selected_product_id == product.id|stringformat:"s" %}selected{% endif %}
+                                    >
+                                        {{ product.name }}
+                                    </option>
                                 {% endfor %}
-                            </datalist>
+                            </select>
                         </div>
                         <div>
-                            <label for="category" class="form-label">Category</label>
-                            <input type="text" id="category" name="category" class="form-control" list="category-options" placeholder="e.g. Dairy" value="{{ form_data.category }}" required>
-                            <datalist id="category-options">
-                                {% for category in categories %}
-                                    <option value="{{ category }}"></option>
-                                {% endfor %}
-                            </datalist>
+                            <label for="category_display" class="form-label">Category</label>
+                            <input type="text" id="category_display" class="form-control" value="{{ selected_product.category }}" readonly>
                         </div>
                         <div>
                             <label for="inventory" class="form-label">Current Inventory</label>
@@ -426,9 +504,13 @@
         <div class="side-stack">
             <div class="prediction-result">
                 <div class="result-label">Recommended Price</div>
-                {% if price %}
+                {% if price != None %}
                     <div class="result-value">${{ price|floatformat:2 }}</div>
-                    <div class="result-note">Predicted optimal price for tomorrow based on the submitted product signals.</div>
+                    {% if expired_pricing_rule %}
+                        <div class="result-note">Expired-product rule applied: the recommended price is $0.00.</div>
+                    {% else %}
+                        <div class="result-note">Predicted optimal price for tomorrow based on the submitted product signals.</div>
+                    {% endif %}
                 {% elif prediction_error %}
                     <div class="result-error">{{ prediction_error }}</div>
                 {% else %}
@@ -454,7 +536,13 @@
             <div class="signal-card factor-expiry">
                 <div class="signal-label">Expiry Signal</div>
                 <div class="signal-title"><i class="bi bi-calendar-event"></i>Time-sensitive pricing</div>
-                <div class="signal-note">Products closer to expiry can be tested for markdown behavior.</div>
+                <div class="signal-note">
+                    {% if expired_pricing_rule %}
+                        Product is expired, so the system recommends $0.00.
+                    {% else %}
+                        Products closer to expiry can be tested for markdown behavior.
+                    {% endif %}
+                </div>
             </div>
 
             <div class="signal-card factor-stock">
@@ -464,5 +552,238 @@
             </div>
         </div>
     </div>
+
+    <div class="predict-panel advanced-panel">
+        <div class="predict-panel-header">
+            <h3>Advanced Testing</h3>
+            <span>Test the model at a specific point in time using the exact feature set sent to prediction.</span>
+        </div>
+
+        <form method="POST" class="predict-form">
+            {% csrf_token %}
+            <input type="hidden" name="prediction_mode" value="advanced">
+
+            <div class="form-section">
+                <div class="section-label"><i class="bi bi-sliders"></i>Core Model Features</div>
+                <div class="predict-grid">
+                    <div>
+                        <label for="advanced_product_id" class="form-label">Product</label>
+                        <select id="advanced_product_id" name="advanced_product_id" class="form-select" required>
+                            <option value="">Select a product</option>
+                            {% for product in products %}
+                                <option
+                                    value="{{ product.id }}"
+                                    data-category="{{ product.category }}"
+                                    data-inventory="{{ product.inventory_level }}"
+                                    data-expiry="{{ product.expiry_date|date:'Y-m-d' }}"
+                                    {% if advanced_selected_product_id == product.id|stringformat:"s" %}selected{% endif %}
+                                >
+                                    {{ product.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="advanced_category_display" class="form-label">Category</label>
+                        <input type="text" id="advanced_category_display" class="form-control" value="{{ advanced_selected_product.category }}" readonly>
+                    </div>
+                    <div>
+                        <label for="advanced_inventory" class="form-label">Inventory Level</label>
+                        <input type="number" id="advanced_inventory" name="advanced_inventory" class="form-control" min="0" step="1" placeholder="e.g. 24" value="{{ advanced_form_data.advanced_inventory }}" required>
+                    </div>
+                    <div>
+                        <label for="days_until_expiry" class="form-label">Days Until Expiry</label>
+                        <input type="number" id="days_until_expiry" name="days_until_expiry" class="form-control" step="1" placeholder="e.g. 12" value="{{ advanced_form_data.days_until_expiry }}" required>
+                    </div>
+                    <div>
+                        <label for="sales_lag_1" class="form-label">Sales Lag 1</label>
+                        <input type="number" id="sales_lag_1" name="sales_lag_1" class="form-control" min="0" step="1" placeholder="today" value="{{ advanced_form_data.sales_lag_1 }}" required>
+                    </div>
+                    <div>
+                        <label for="sales_lag_2" class="form-label">Sales Lag 2</label>
+                        <input type="number" id="sales_lag_2" name="sales_lag_2" class="form-control" min="0" step="1" placeholder="yesterday" value="{{ advanced_form_data.sales_lag_2 }}" required>
+                    </div>
+                    <div>
+                        <label for="advanced_demand_change" class="form-label">Demand Change (%)</label>
+                        <input type="number" id="advanced_demand_change" class="form-control" step="0.01" value="{% if advanced_demand_change != None %}{{ advanced_demand_change|floatformat:2 }}{% endif %}" readonly>
+                    </div>
+                    <div>
+                        <label for="prediction_date" class="form-label">Prediction Date</label>
+                        <input type="date" id="prediction_date" name="prediction_date" class="form-control" value="{% if advanced_form_data.prediction_date %}{{ advanced_form_data.prediction_date }}{% else %}{{ tomorrow|date:'Y-m-d' }}{% endif %}" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-label"><i class="bi bi-calendar2-week"></i>Time Features Sent To Model</div>
+                <div class="advanced-feature-grid">
+                    <div class="feature-preview">
+                        <span>Year</span>
+                        <strong id="feature_year">{{ advanced_feature_preview.year }}</strong>
+                    </div>
+                    <div class="feature-preview">
+                        <span>Month</span>
+                        <strong id="feature_month">{{ advanced_feature_preview.month }}</strong>
+                    </div>
+                    <div class="feature-preview">
+                        <span>Day</span>
+                        <strong id="feature_day">{{ advanced_feature_preview.day }}</strong>
+                    </div>
+                    <div class="feature-preview">
+                        <span>Day Of Week</span>
+                        <strong id="feature_day_of_week">{{ advanced_feature_preview.day_of_week }}</strong>
+                    </div>
+                    <div class="feature-preview">
+                        <span>Is Weekend</span>
+                        <strong id="feature_is_weekend">{{ advanced_feature_preview.is_weekend }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="advanced-result-row">
+                <div>
+                    <div class="result-label">Advanced Result</div>
+                    {% if advanced_price != None %}
+                        <div class="advanced-result-price">${{ advanced_price|floatformat:2 }}</div>
+                        {% if advanced_expired_pricing_rule %}
+                            <div class="advanced-result-note">Expired-product rule applied because days until expiry is below zero.</div>
+                        {% else %}
+                            <div class="advanced-result-note">Model prediction using the advanced feature inputs.</div>
+                        {% endif %}
+                    {% elif advanced_error %}
+                        <div class="result-error">{{ advanced_error }}</div>
+                    {% else %}
+                        <div class="advanced-result-note">Submit advanced feature values to test a specific model scenario.</div>
+                    {% endif %}
+                </div>
+                <button type="submit" class="btn predict-btn predict-btn-primary">
+                    <i class="bi bi-cpu"></i>Run Advanced Test
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        function selectedOption(select) {
+            return select && select.selectedOptions ? select.selectedOptions[0] : null;
+        }
+
+        function syncProductFields(select, categoryDisplay, inventoryInput, expiryInput, overwriteScenarioFields) {
+            const option = selectedOption(select);
+            if (!option || !option.value) {
+                categoryDisplay.value = "";
+                if (overwriteScenarioFields) {
+                    if (inventoryInput) inventoryInput.value = "";
+                    if (expiryInput) expiryInput.value = "";
+                }
+                return;
+            }
+
+            categoryDisplay.value = option.dataset.category || "";
+            if (overwriteScenarioFields) {
+                if (inventoryInput) inventoryInput.value = option.dataset.inventory || "";
+                if (expiryInput) expiryInput.value = option.dataset.expiry || "";
+            }
+        }
+
+        function parseDateValue(value) {
+            if (!value) return null;
+            const parts = value.split("-").map(Number);
+            if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
+        function daysBetween(startValue, endValue) {
+            const start = parseDateValue(startValue);
+            const end = parseDateValue(endValue);
+            if (!start || !end) return "";
+            const msPerDay = 24 * 60 * 60 * 1000;
+            return Math.round((start - end) / msPerDay);
+        }
+
+        function updateAdvancedTimeFeatures() {
+            const predictionDateInput = document.getElementById("prediction_date");
+            const predictionDate = parseDateValue(predictionDateInput.value);
+            const year = document.getElementById("feature_year");
+            const month = document.getElementById("feature_month");
+            const day = document.getElementById("feature_day");
+            const dayOfWeek = document.getElementById("feature_day_of_week");
+            const isWeekend = document.getElementById("feature_is_weekend");
+
+            if (!predictionDate) {
+                year.textContent = "";
+                month.textContent = "";
+                day.textContent = "";
+                dayOfWeek.textContent = "";
+                isWeekend.textContent = "";
+                return;
+            }
+
+            const weekday = predictionDate.getDay() === 0 ? 6 : predictionDate.getDay() - 1;
+            year.textContent = predictionDate.getFullYear();
+            month.textContent = predictionDate.getMonth() + 1;
+            day.textContent = predictionDate.getDate();
+            dayOfWeek.textContent = weekday;
+            isWeekend.textContent = weekday >= 5 ? "1" : "0";
+        }
+
+        function syncAdvancedDaysUntilExpiry() {
+            const advancedProductSelect = document.getElementById("advanced_product_id");
+            const predictionDateInput = document.getElementById("prediction_date");
+            const daysInput = document.getElementById("days_until_expiry");
+            const option = selectedOption(advancedProductSelect);
+            if (!option || !option.dataset.expiry || !predictionDateInput.value) return;
+            daysInput.value = daysBetween(option.dataset.expiry, predictionDateInput.value);
+        }
+
+        function updateAdvancedDemandChange() {
+            const lag1Input = document.getElementById("sales_lag_1");
+            const lag2Input = document.getElementById("sales_lag_2");
+            const demandInput = document.getElementById("advanced_demand_change");
+            if (lag1Input.value === "" || lag2Input.value === "") {
+                demandInput.value = "";
+                return;
+            }
+
+            const lag1 = Number(lag1Input.value || 0);
+            const lag2 = Number(lag2Input.value || 0);
+            if (lag2 === 0) {
+                demandInput.value = "0";
+            } else {
+                demandInput.value = (((lag1 - lag2) / lag2) * 100).toFixed(2);
+            }
+        }
+
+        const productSelect = document.getElementById("product_id");
+        const categoryDisplay = document.getElementById("category_display");
+        const inventoryInput = document.getElementById("inventory");
+        const expiryInput = document.getElementById("expiry_date");
+        syncProductFields(productSelect, categoryDisplay, inventoryInput, expiryInput, false);
+        productSelect.addEventListener("change", function () {
+            syncProductFields(productSelect, categoryDisplay, inventoryInput, expiryInput, true);
+        });
+
+        const advancedProductSelect = document.getElementById("advanced_product_id");
+        const advancedCategoryDisplay = document.getElementById("advanced_category_display");
+        const advancedInventoryInput = document.getElementById("advanced_inventory");
+        const predictionDateInput = document.getElementById("prediction_date");
+        syncProductFields(advancedProductSelect, advancedCategoryDisplay, advancedInventoryInput, null, false);
+        updateAdvancedTimeFeatures();
+        advancedProductSelect.addEventListener("change", function () {
+            syncProductFields(advancedProductSelect, advancedCategoryDisplay, advancedInventoryInput, null, true);
+            syncAdvancedDaysUntilExpiry();
+        });
+        predictionDateInput.addEventListener("change", function () {
+            updateAdvancedTimeFeatures();
+            syncAdvancedDaysUntilExpiry();
+        });
+        document.getElementById("sales_lag_1").addEventListener("input", updateAdvancedDemandChange);
+        document.getElementById("sales_lag_2").addEventListener("input", updateAdvancedDemandChange);
+        updateAdvancedDemandChange();
+    });
+</script>
 {% endblock %}

@@ -67,6 +67,46 @@ def prepare_input_for_tomorrow(product_name, category, current_inventory, expiry
 
     return df
 
+def prepare_advanced_input(product_name, category, current_inventory, days_until_expiry,
+                           sales_lag_1, sales_lag_2, demand_change, prediction_date,
+                           model):
+    if isinstance(prediction_date, str):
+        prediction_date = datetime.datetime.strptime(prediction_date, "%Y-%m-%d").date()
+
+    try:
+        encoded_product = ProjectsmartshelfConfig.prod_encoder.transform([product_name])[0]
+    except ValueError:
+        encoded_product = -1
+
+    try:
+        encoded_category = ProjectsmartshelfConfig.cat_encoder.transform([category])[0]
+    except ValueError:
+        encoded_category = -1
+
+    data_dict = {
+        "product_name": encoded_product,
+        "category": encoded_category,
+        "inventory_level": current_inventory,
+        "days_until_expiry": days_until_expiry,
+        "sales_lag_1": sales_lag_1,
+        "sales_lag_2": sales_lag_2,
+        "demand_change": demand_change,
+        "year": prediction_date.year,
+        "month": prediction_date.month,
+        "day": prediction_date.day,
+        "day_of_week": prediction_date.weekday(),
+        "is_weekend": 1 if prediction_date.weekday() >= 5 else 0
+    }
+
+    df = pd.DataFrame([data_dict])
+
+    try:
+        df = df[model.feature_names_in_]
+    except AttributeError:
+        print("Warning: Could not auto-align features. Using default order.")
+
+    return df
+
 def predict_prices_batch(base_date=None):
     """
     Generates AI price recommendations for ALL products in the database.

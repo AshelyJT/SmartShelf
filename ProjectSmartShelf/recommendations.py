@@ -23,11 +23,18 @@ def build_recommendations(base_date):
         reason = ''
         urgency = 'low'
 
+        if days_until_expiry is not None and days_until_expiry < 0:
+            ai_price = Decimal('0.00')
+
         price_diff_pct = 0
         if current_price > 0:
             price_diff_pct = ((ai_price - current_price) / current_price) * 100
 
-        if days_until_expiry is not None and days_until_expiry <= 7:
+        if days_until_expiry is not None and days_until_expiry < 0:
+            urgency = 'high'
+            rec_type = 'clearance'
+            reason = 'Expired - product should not be sold'
+        elif days_until_expiry is not None and days_until_expiry <= 7:
             if days_until_expiry <= 2:
                 urgency = 'high'
                 rec_type = 'clearance'

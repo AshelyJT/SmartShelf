@@ -18,7 +18,7 @@ from checkout.models import Product
 from decimal import Decimal
 from .models import DailyProductSales, PriceHistory, ScheduledPromotion
 from .apps import ProjectsmartshelfConfig
-from .ml_models.utils import prepare_input_for_tomorrow, predict_prices_batch
+from .ml_models.utils import prepare_advanced_input, prepare_input_for_tomorrow, predict_prices_batch
 from .recommendations import build_recommendations
 from .simulation import (
     clear_active_simulated_date,
@@ -376,15 +376,31 @@ def predict_tomorrow_price(request):
     predicted_price = None
     prediction_error = None
     demand_change = None
-    form_data = request.POST if request.method == "POST" else {}
+    expired_pricing_rule = False
+    advanced_price = None
+    advanced_error = None
+    advanced_demand_change = None
+    advanced_expired_pricing_rule = False
+    advanced_feature_preview = {}
+    prediction_mode = request.POST.get("prediction_mode", "simple") if request.method == "POST" else ""
+    form_data = request.POST if prediction_mode == "simple" else {}
+    advanced_form_data = request.POST if prediction_mode == "advanced" else {}
     tomorrow = timezone.now().date() + datetime.timedelta(days=1)
 
-    if request.method == "POST":
+    if request.method == "POST" and prediction_mode == "simple":
         try:
-            p_name = request.POST.get("product_name")
-            p_cat = request.POST.get("category")
+            product_id = request.POST.get("product_id")
+            selected_product = Product.objects.filter(id=product_id).first()
+            if not selected_product:
+                raise ValueError("Select a valid product from the database.")
+
+            p_name = selected_product.name
+            p_cat = selected_product.category
             inventory = float(request.POST.get("inventory"))
             expiry = request.POST.get("expiry_date")
+            expiry_date = parse_date(expiry)
+            if not expiry_date:
+                raise ValueError("Expiry date is required.")
             sales_today = float(request.POST.get("sales_today"))
             sales_yesterday = float(request.POST.get("sales_yesterday"))
 
@@ -393,29 +409,103 @@ def predict_tomorrow_price(request):
             else:
                 demand_change = ((sales_today - sales_yesterday) / sales_yesterday) * 100
 
-            model = ProjectsmartshelfConfig.model
-            if model:
-                input_df = prepare_input_for_tomorrow(
-                    p_name, p_cat, inventory, expiry, sales_today, sales_yesterday, model
-                )
-                result = model.predict(input_df)
-                predicted_price = round(result[0], 2)
+            expired_pricing_rule = expiry_date < timezone.now().date()
+            if expired_pricing_rule:
+                predicted_price = Decimal('0.00')
             else:
-                prediction_error = "The AI pricing model is not loaded yet."
+                model = ProjectsmartshelfConfig.model
+                if not model:
+                    prediction_error = "The AI pricing model is not loaded yet."
+                else:
+                    input_df = prepare_input_for_tomorrow(
+                        p_name, p_cat, inventory, expiry, sales_today, sales_yesterday, model
+                    )
+                    result = model.predict(input_df)
+                    predicted_price = round(result[0], 2)
         except (TypeError, ValueError) as exc:
             prediction_error = f"Enter valid prediction inputs. {exc}"
 
-    products = Product.objects.order_by('name').values_list('name', flat=True).distinct()
-    categories = Product.objects.order_by('category').values_list('category', flat=True).distinct()
+    if request.method == "POST" and prediction_mode == "advanced":
+        try:
+            product_id = request.POST.get("advanced_product_id")
+            selected_product = Product.objects.filter(id=product_id).first()
+            if not selected_product:
+                raise ValueError("Select a valid product from the database.")
+
+            prediction_date_raw = request.POST.get("prediction_date")
+            prediction_date = parse_date(prediction_date_raw)
+            if not prediction_date:
+                raise ValueError("Prediction date is required.")
+
+            inventory = float(request.POST.get("advanced_inventory"))
+            days_until_expiry = float(request.POST.get("days_until_expiry"))
+            sales_lag_1 = float(request.POST.get("sales_lag_1"))
+            sales_lag_2 = float(request.POST.get("sales_lag_2"))
+            if sales_lag_2 == 0:
+                advanced_demand_change = 0
+            else:
+                advanced_demand_change = ((sales_lag_1 - sales_lag_2) / sales_lag_2) * 100
+
+            advanced_feature_preview = {
+                "year": prediction_date.year,
+                "month": prediction_date.month,
+                "day": prediction_date.day,
+                "day_of_week": prediction_date.weekday(),
+                "is_weekend": 1 if prediction_date.weekday() >= 5 else 0,
+            }
+
+            advanced_expired_pricing_rule = days_until_expiry < 0
+            if advanced_expired_pricing_rule:
+                advanced_price = Decimal('0.00')
+            else:
+                model = ProjectsmartshelfConfig.model
+                if not model:
+                    advanced_error = "The AI pricing model is not loaded yet."
+                else:
+                    input_df = prepare_advanced_input(
+                        selected_product.name,
+                        selected_product.category,
+                        inventory,
+                        days_until_expiry,
+                        sales_lag_1,
+                        sales_lag_2,
+                        advanced_demand_change,
+                        prediction_date,
+                        model,
+                    )
+                    result = model.predict(input_df)
+                    advanced_price = round(result[0], 2)
+        except (TypeError, ValueError) as exc:
+            advanced_error = f"Enter valid advanced inputs. {exc}"
+
+    products = Product.objects.order_by('name')
+    selected_product_id = form_data.get("product_id", "")
+    selected_product = None
+    if selected_product_id:
+        selected_product = Product.objects.filter(id=selected_product_id).first()
+    advanced_selected_product_id = advanced_form_data.get("advanced_product_id", "")
+    advanced_selected_product = None
+    if advanced_selected_product_id:
+        advanced_selected_product = Product.objects.filter(id=advanced_selected_product_id).first()
 
     return render(request, "predict_price.html", {
         "price": predicted_price,
         "prediction_error": prediction_error,
         "demand_change": demand_change,
+        "expired_pricing_rule": expired_pricing_rule,
         "form_data": form_data,
+        "advanced_price": advanced_price,
+        "advanced_error": advanced_error,
+        "advanced_demand_change": advanced_demand_change,
+        "advanced_expired_pricing_rule": advanced_expired_pricing_rule,
+        "advanced_feature_preview": advanced_feature_preview,
+        "advanced_form_data": advanced_form_data,
         "tomorrow": tomorrow,
         "products": products,
-        "categories": categories,
+        "selected_product": selected_product,
+        "selected_product_id": selected_product_id,
+        "advanced_selected_product": advanced_selected_product,
+        "advanced_selected_product_id": advanced_selected_product_id,
     })
 
 @staff_member_required(login_url='staff_login')
@@ -462,6 +552,21 @@ def pricing_dashboard(request):
             demand_label = "Stable"
             demand_class = "demand-stable"
 
+        # Calculate days until expiry (using simulated today)
+        if product.expiry_date:
+            days_until_expiry = (product.expiry_date - simulated_today).days
+        else:
+            days_until_expiry = 30  # default as in prediction
+
+        expired_pricing_rule = days_until_expiry < 0
+        if expired_pricing_rule:
+            ai_price = Decimal('0.00')
+            expiry_signal = "expired - product should not be sold"
+        elif days_until_expiry <= 7:
+            expiry_signal = f"expires in {days_until_expiry} days"
+        else:
+            expiry_signal = "expiry risk is low"
+
         price_delta = ai_price - current_price
         price_delta_abs = abs(price_delta)
         if current_price > 0:
@@ -483,19 +588,6 @@ def pricing_dashboard(request):
             trend_icon = "Hold"
             css_class = "trend-flat"
 
-        # Calculate days until expiry (using simulated today)
-        if product.expiry_date:
-            days_until_expiry = (product.expiry_date - simulated_today).days
-            if days_until_expiry < 0:
-                days_until_expiry = 0  # or keep negative to show expired
-        else:
-            days_until_expiry = 30  # default as in prediction
-
-        if days_until_expiry <= 7:
-            expiry_signal = f"expires in {days_until_expiry} days"
-        else:
-            expiry_signal = "expiry risk is low"
-
         pricing_reason = (
             f"{demand_label} demand ({sales_today} sold today vs {sales_yesterday} yesterday), "
             f"{expiry_signal}, and {product.inventory_level} units in stock."
@@ -516,6 +608,7 @@ def pricing_dashboard(request):
             'price_delta_abs': price_delta_abs,
             'price_delta_percent': price_delta_percent,
             'pricing_reason': pricing_reason,
+            'expired_pricing_rule': expired_pricing_rule,
             'status': status,
             'icon': trend_icon,
             'css_class': css_class,

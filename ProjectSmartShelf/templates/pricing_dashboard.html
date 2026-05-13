@@ -554,29 +554,6 @@
 
 {% block content %}
 <div class="pricing-page">
-    <div class="pricing-command-bar">
-        <div class="pricing-command-title">
-            <span class="title-icon"><i class="bi bi-cpu"></i></span>
-            <div>
-                <h2>Pricing Model</h2>
-                <span>{{ pricing_summary.total }} recommendations for {{ current_date|date:"M j, Y" }}</span>
-            </div>
-        </div>
-        <div class="pricing-command-actions">
-            <a href="{{ request.get_full_path }}" class="btn pricing-btn pricing-btn-secondary">
-                <i class="bi bi-arrow-clockwise"></i>Refresh
-            </a>
-            <a href="{% url 'predict_price' %}" class="btn pricing-btn pricing-btn-secondary">
-                <i class="bi bi-calculator"></i>Test Prediction
-            </a>
-            <form method="post" class="m-0">
-                {% csrf_token %}
-                <button type="submit" name="apply_all" class="btn pricing-btn pricing-btn-primary">
-                    <i class="bi bi-check2-circle"></i>Apply All
-                </button>
-            </form>
-        </div>
-    </div>
 
     <div class="pricing-stat-grid">
         <div class="pricing-stat stat-total">
@@ -610,6 +587,30 @@
             </div>
             <div class="pricing-stat-value">{{ pricing_summary.urgent_expiry_count }}</div>
             <div class="pricing-stat-note">Within seven days</div>
+        </div>
+    </div>
+
+        <div class="pricing-command-bar">
+        <div class="pricing-command-title">
+            <span class="title-icon"><i class="bi bi-cpu"></i></span>
+            <div>
+                <h2>Pricing Model</h2>
+                <span>{{ pricing_summary.total }} recommendations for {{ current_date|date:"M j, Y" }}</span>
+            </div>
+        </div>
+        <div class="pricing-command-actions">
+            <a href="{{ request.get_full_path }}" class="btn pricing-btn pricing-btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>Refresh
+            </a>
+            <a href="{% url 'predict_price' %}" class="btn pricing-btn pricing-btn-secondary">
+                <i class="bi bi-calculator"></i>Test Prediction
+            </a>
+            <form method="post" class="m-0">
+                {% csrf_token %}
+                <button type="submit" name="apply_all" class="btn pricing-btn pricing-btn-primary">
+                    <i class="bi bi-check2-circle"></i>Apply All
+                </button>
+            </form>
         </div>
     </div>
 
