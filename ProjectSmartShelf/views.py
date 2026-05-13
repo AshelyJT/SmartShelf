@@ -374,33 +374,49 @@ def product_trend_api(request, product_id=None):
 @staff_member_required(login_url='staff_login')
 def predict_tomorrow_price(request):
     predicted_price = None
+    prediction_error = None
+    demand_change = None
+    form_data = request.POST if request.method == "POST" else {}
+    tomorrow = timezone.now().date() + datetime.timedelta(days=1)
 
     if request.method == "POST":
-        # A. Get data from User (or Database)
-        p_name = request.POST.get("product_name") # e.g. "Milk"
-        p_cat = request.POST.get("category")      # e.g. "Dairy"
-        inventory = float(request.POST.get("inventory"))
-        expiry = request.POST.get("expiry_date")  # "2025-12-31"
-       
-        # B. Get Sales History (Crucial!)
-        # In a real app, query your database: Sales.objects.filter(product=p_name)...
-        # For this example, we ask the user:
-        sales_today = float(request.POST.get("sales_today"))
-        sales_yesterday = float(request.POST.get("sales_yesterday"))
+        try:
+            p_name = request.POST.get("product_name")
+            p_cat = request.POST.get("category")
+            inventory = float(request.POST.get("inventory"))
+            expiry = request.POST.get("expiry_date")
+            sales_today = float(request.POST.get("sales_today"))
+            sales_yesterday = float(request.POST.get("sales_yesterday"))
 
-        # C. Prepare Data
-        input_df = prepare_input_for_tomorrow(
-            p_name, p_cat, inventory, expiry, sales_today, sales_yesterday
-        )
+            if sales_yesterday == 0:
+                demand_change = 0
+            else:
+                demand_change = ((sales_today - sales_yesterday) / sales_yesterday) * 100
 
-        # D. Predict
-        model = ProjectsmartshelfConfig.model
-        if model:
-            # xgboost usually returns a numpy array like [12.50]
-            result = model.predict(input_df)
-            predicted_price = round(result[0], 2)
+            model = ProjectsmartshelfConfig.model
+            if model:
+                input_df = prepare_input_for_tomorrow(
+                    p_name, p_cat, inventory, expiry, sales_today, sales_yesterday, model
+                )
+                result = model.predict(input_df)
+                predicted_price = round(result[0], 2)
+            else:
+                prediction_error = "The AI pricing model is not loaded yet."
+        except (TypeError, ValueError) as exc:
+            prediction_error = f"Enter valid prediction inputs. {exc}"
 
-    return render(request, "predict_price.html", {"price": predicted_price})
+    products = Product.objects.order_by('name').values_list('name', flat=True).distinct()
+    categories = Product.objects.order_by('category').values_list('category', flat=True).distinct()
+
+    return render(request, "predict_price.html", {
+        "price": predicted_price,
+        "prediction_error": prediction_error,
+        "demand_change": demand_change,
+        "form_data": form_data,
+        "tomorrow": tomorrow,
+        "products": products,
+        "categories": categories,
+    })
 
 @staff_member_required(login_url='staff_login')
 def pricing_dashboard(request):
@@ -412,25 +428,59 @@ def pricing_dashboard(request):
 
     # Run AI Batch Prediction using simulated date as base
     raw_results = predict_prices_batch(base_date=simulated_today)
+    yesterday = simulated_today - datetime.timedelta(days=1)
+
+    sales_today_map = {
+        item.product_name: item.units_sold
+        for item in DailyProductSales.objects.filter(date=simulated_today)
+    }
+    sales_yesterday_map = {
+        item.product_name: item.units_sold
+        for item in DailyProductSales.objects.filter(date=yesterday)
+    }
 
     final_report = []
     for product, raw_ai_price in raw_results:
         current_price = product.price if product.price else Decimal('0.00')
         expiry_date = product.expiry_date
         ai_price = Decimal(str(raw_ai_price)).quantize(Decimal('0.01'))
+        sales_today = sales_today_map.get(product.name, 0)
+        sales_yesterday = sales_yesterday_map.get(product.name, 0)
+
+        if sales_yesterday == 0:
+            demand_change = 0
+        else:
+            demand_change = ((sales_today - sales_yesterday) / sales_yesterday) * 100
+
+        if demand_change > 5:
+            demand_label = "Rising"
+            demand_class = "demand-rising"
+        elif demand_change < -5:
+            demand_label = "Falling"
+            demand_class = "demand-falling"
+        else:
+            demand_label = "Stable"
+            demand_class = "demand-stable"
+
+        price_delta = ai_price - current_price
+        price_delta_abs = abs(price_delta)
+        if current_price > 0:
+            price_delta_percent = (price_delta / current_price) * 100
+        else:
+            price_delta_percent = 0
 
         # Determine price trend
         if ai_price > current_price:
             status = "Increase"
-            trend_icon = "⬆"
+            trend_icon = "Up"
             css_class = "trend-up"
         elif ai_price < current_price:
             status = "Decrease"
-            trend_icon = "⬇"
+            trend_icon = "Down"
             css_class = "trend-down"
         else:
             status = "Keep"
-            trend_icon = "➡"
+            trend_icon = "Hold"
             css_class = "trend-flat"
 
         # Calculate days until expiry (using simulated today)
@@ -441,17 +491,43 @@ def pricing_dashboard(request):
         else:
             days_until_expiry = 30  # default as in prediction
 
+        if days_until_expiry <= 7:
+            expiry_signal = f"expires in {days_until_expiry} days"
+        else:
+            expiry_signal = "expiry risk is low"
+
+        pricing_reason = (
+            f"{demand_label} demand ({sales_today} sold today vs {sales_yesterday} yesterday), "
+            f"{expiry_signal}, and {product.inventory_level} units in stock."
+        )
+
         final_report.append({
             'product': product,
             'current_price': current_price,
             'current_date': simulated_today,
             'expiry_date': expiry_date,
             'ai_price': ai_price,
+            'sales_today': sales_today,
+            'sales_yesterday': sales_yesterday,
+            'demand_change': demand_change,
+            'demand_label': demand_label,
+            'demand_class': demand_class,
+            'price_delta': price_delta,
+            'price_delta_abs': price_delta_abs,
+            'price_delta_percent': price_delta_percent,
+            'pricing_reason': pricing_reason,
             'status': status,
             'icon': trend_icon,
             'css_class': css_class,
             'days_until_expiry': days_until_expiry,
         })
+
+    pricing_summary = {
+        'total': len(final_report),
+        'increase_count': sum(1 for item in final_report if item['status'] == 'Increase'),
+        'decrease_count': sum(1 for item in final_report if item['status'] == 'Decrease'),
+        'urgent_expiry_count': sum(1 for item in final_report if item['days_until_expiry'] <= 7),
+    }
 
     # Handle "Apply All" button
     if request.method == "POST" and "apply_all" in request.POST:
@@ -477,7 +553,11 @@ def pricing_dashboard(request):
         messages.success(request, f"Successfully updated prices for {update_count} products!")
         return redirect('pricing_dashboard')
 
-    return render(request, 'pricing_dashboard.html', {'report_data': final_report, 'current_date': simulated_today,})
+    return render(request, 'pricing_dashboard.html', {
+        'report_data': final_report,
+        'current_date': simulated_today,
+        'pricing_summary': pricing_summary,
+    })
 
 @staff_member_required(login_url='staff_login')
 def close_day_advance(request):

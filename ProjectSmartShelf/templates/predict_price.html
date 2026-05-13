@@ -1,110 +1,468 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
+{% load static %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Predict Tomorrow's Price</title>
-    <style>
-        /* Basic styling to make the form look clean */
-        body {
-            font-family: sans-serif;
-            max-width: 600px;
-            margin: 40px auto;
-            padding: 20px;
+{% block title %}Test Price Prediction{% endblock %}
+
+{% block page_title %}<i class="bi bi-calculator me-2"></i>Test Prediction{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-content {
+        background:
+            linear-gradient(180deg, rgba(20, 25, 35, 0.98) 0%, rgba(11, 14, 20, 1) 100%) !important;
+    }
+
+    .predict-page {
+        --predict-panel: #171d2a;
+        --predict-panel-strong: #1d2534;
+        --predict-line: #2a3446;
+        --predict-line-soft: rgba(129, 148, 175, 0.18);
+        --predict-text: #eef4fb;
+        --predict-muted: #9baabe;
+        --predict-blue: #5aa2ff;
+        --predict-teal: #45d6c5;
+        --predict-green: #71d66f;
+        --predict-amber: #ffcc66;
+        --predict-red: #ff7a7a;
+        color: var(--predict-text);
+    }
+
+    .predict-command-bar,
+    .predict-panel,
+    .prediction-result,
+    .signal-card {
+        background: linear-gradient(180deg, rgba(29, 37, 52, 0.95), rgba(20, 26, 38, 0.98));
+        border: 1px solid var(--predict-line);
+        border-radius: 8px;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.24);
+    }
+
+    .predict-command-bar {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        padding: 1rem;
+    }
+
+    .predict-command-title {
+        align-items: center;
+        display: flex;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+
+    .predict-command-title .title-icon {
+        align-items: center;
+        background: rgba(69, 214, 197, 0.14);
+        border: 1px solid rgba(69, 214, 197, 0.28);
+        border-radius: 8px;
+        color: var(--predict-teal);
+        display: inline-flex;
+        height: 2.65rem;
+        justify-content: center;
+        width: 2.65rem;
+    }
+
+    .predict-command-title h2 {
+        color: #ffffff;
+        font-size: 1rem;
+        line-height: 1.15;
+        margin: 0;
+    }
+
+    .predict-command-title span {
+        color: var(--predict-muted);
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.2rem;
+    }
+
+    .predict-command-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        justify-content: flex-end;
+    }
+
+    .predict-btn {
+        align-items: center;
+        border-radius: 8px;
+        display: inline-flex;
+        font-weight: 700;
+        gap: 0.45rem;
+        justify-content: center;
+        min-height: 2.5rem;
+        padding: 0.55rem 0.9rem;
+        white-space: nowrap;
+    }
+
+    .predict-btn-primary {
+        background: linear-gradient(135deg, #2f7df4, #45d6c5);
+        border: 0;
+        color: #ffffff;
+    }
+
+    .predict-btn-primary:hover {
+        color: #ffffff;
+        filter: brightness(1.06);
+    }
+
+    .predict-btn-secondary {
+        background: #20293a;
+        border: 1px solid var(--predict-line);
+        color: #dbe7f5;
+    }
+
+    .predict-btn-secondary:hover {
+        background: #263145;
+        border-color: #40516c;
+        color: #ffffff;
+    }
+
+    .predict-layout {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+    }
+
+    .predict-panel {
+        overflow: hidden;
+    }
+
+    .predict-panel-header {
+        border-bottom: 1px solid var(--predict-line);
+        padding: 1rem;
+    }
+
+    .predict-panel-header h3 {
+        color: #ffffff;
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .predict-panel-header span {
+        color: var(--predict-muted);
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.25rem;
+    }
+
+    .predict-form {
+        padding: 1rem;
+    }
+
+    .form-section {
+        border-bottom: 1px solid var(--predict-line);
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .form-section:last-of-type {
+        border-bottom: 0;
+        margin-bottom: 0;
+    }
+
+    .section-label {
+        align-items: center;
+        color: #ffffff;
+        display: flex;
+        font-size: 0.88rem;
+        font-weight: 800;
+        gap: 0.45rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .predict-grid {
+        display: grid;
+        gap: 0.85rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .predict-page .form-label {
+        color: #c9d5e6 !important;
+        font-size: 0.78rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+    }
+
+    .predict-page .form-control {
+        background-color: #111824 !important;
+        border: 1px solid var(--predict-line) !important;
+        border-radius: 8px;
+        color: #ffffff !important;
+        min-height: 2.55rem;
+    }
+
+    .predict-page .form-control::placeholder {
+        color: #7f8da0 !important;
+        opacity: 1;
+    }
+
+    .predict-page .form-control:focus {
+        background-color: #131c2a !important;
+        border-color: var(--predict-blue) !important;
+        box-shadow: 0 0 0 0.2rem rgba(90, 162, 255, 0.18);
+        color: #ffffff !important;
+    }
+
+    .form-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        justify-content: flex-end;
+        padding-top: 1rem;
+    }
+
+    .side-stack {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .prediction-result {
+        overflow: hidden;
+        padding: 1rem;
+        position: relative;
+    }
+
+    .prediction-result::before,
+    .signal-card::before {
+        content: "";
+        height: 3px;
+        left: 0;
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+
+    .prediction-result::before { background: var(--predict-teal); }
+    .signal-card.factor-demand::before { background: var(--predict-blue); }
+    .signal-card.factor-expiry::before { background: var(--predict-amber); }
+    .signal-card.factor-stock::before { background: var(--predict-green); }
+
+    .result-label,
+    .signal-label {
+        color: var(--predict-muted);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .result-value {
+        color: #ffffff;
+        font-size: 2.4rem;
+        font-weight: 800;
+        line-height: 1;
+        margin-top: 0.9rem;
+    }
+
+    .result-note,
+    .signal-note {
+        color: #b1bfd0;
+        font-size: 0.84rem;
+        line-height: 1.45;
+        margin-top: 0.75rem;
+    }
+
+    .result-empty {
+        align-items: center;
+        background: rgba(90, 162, 255, 0.1);
+        border: 1px dashed rgba(90, 162, 255, 0.28);
+        border-radius: 8px;
+        color: #c9e1ff;
+        display: flex;
+        gap: 0.65rem;
+        line-height: 1.45;
+        margin-top: 0.9rem;
+        padding: 0.85rem;
+    }
+
+    .result-error {
+        background: rgba(255, 122, 122, 0.12);
+        border: 1px solid rgba(255, 122, 122, 0.28);
+        border-radius: 8px;
+        color: #ffc2c2;
+        line-height: 1.45;
+        margin-top: 0.9rem;
+        padding: 0.85rem;
+    }
+
+    .signal-card {
+        min-height: 112px;
+        padding: 1rem;
+        position: relative;
+    }
+
+    .signal-title {
+        align-items: center;
+        color: #ffffff;
+        display: flex;
+        font-weight: 800;
+        gap: 0.45rem;
+        margin-top: 0.85rem;
+    }
+
+    @media (max-width: 1100px) {
+        .predict-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .predict-command-bar {
+            align-items: stretch;
+            flex-direction: column;
         }
 
-        .form-group {
-            margin-bottom: 15px;
+        .predict-command-actions {
+            justify-content: stretch;
         }
 
-        label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        input {
+        .predict-command-actions .predict-btn {
             width: 100%;
-            padding: 8px;
-            box-sizing: border-box;
         }
 
-        button {
-            background-color: #28a745;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
+        .predict-grid {
+            grid-template-columns: 1fr;
         }
 
-        button:hover {
-            background-color: #218838;
+        .form-actions {
+            justify-content: stretch;
         }
 
-        .result-box {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #e2e3e5;
-            border-radius: 5px;
-            text-align: center;
+        .form-actions .predict-btn {
+            width: 100%;
         }
-    </style>
-</head>
+    }
+</style>
+{% endblock %}
 
-<body>
-
-    <h1>Price Prediction Tool</h1>
-    <p>Enter today's data to predict the optimal price for tomorrow.</p>
-
-    <form method="POST">
-        {% csrf_token %}
-
-        <div class="form-group">
-            <label>Product Name:</label>
-            <input type="text" name="product_name" placeholder="e.g. Milk 1L" required>
+{% block content %}
+<div class="predict-page">
+    <div class="predict-command-bar">
+        <div class="predict-command-title">
+            <span class="title-icon"><i class="bi bi-cpu"></i></span>
+            <div>
+                <h2>Prediction Sandbox</h2>
+                <span>Test an AI price for {{ tomorrow|date:"M j, Y" }}</span>
+            </div>
         </div>
-
-        <div class="form-group">
-            <label>Category:</label>
-            <input type="text" name="category" placeholder="e.g. Dairy" required>
+        <div class="predict-command-actions">
+            <a href="{% url 'pricing_dashboard' %}" class="btn predict-btn predict-btn-secondary">
+                <i class="bi bi-arrow-left"></i>AI Pricing
+            </a>
+            <a href="{{ request.path }}" class="btn predict-btn predict-btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>Reset
+            </a>
         </div>
-
-        <div class="form-group">
-            <label>Current Inventory Level:</label>
-            <input type="number" name="inventory" step="1" required>
-        </div>
-
-        <div class="form-group">
-            <label>Expiry Date:</label>
-            <input type="date" name="expiry_date" required>
-        </div>
-
-        <hr>
-
-        <h3>Sales Performance</h3>
-        <p><small>These numbers are needed to calculate demand trends.</small></p>
-
-        <div class="form-group">
-            <label>Units Sold TODAY:</label>
-            <input type="number" name="sales_today" step="1" placeholder="Sales for Lag 1" required>
-        </div>
-
-        <div class="form-group">
-            <label>Units Sold YESTERDAY:</label>
-            <input type="number" name="sales_yesterday" step="1" placeholder="Sales for Lag 2" required>
-        </div>
-
-        <button type="submit">Predict Tomorrow's Price</button>
-    </form>
-
-    {% if price %}
-    <div class="result-box">
-        <h2>Recommended Price: ${{ price }}</h2>
     </div>
-    {% endif %}
 
-</body>
+    <div class="predict-layout">
+        <div class="predict-panel">
+            <div class="predict-panel-header">
+                <h3>Prediction Inputs</h3>
+                <span>Enter product, stock, expiry, and recent sales values.</span>
+            </div>
 
-</html>
+            <form method="POST" class="predict-form">
+                {% csrf_token %}
+
+                <div class="form-section">
+                    <div class="section-label"><i class="bi bi-box-seam"></i>Product Details</div>
+                    <div class="predict-grid">
+                        <div>
+                            <label for="product_name" class="form-label">Product Name</label>
+                            <input type="text" id="product_name" name="product_name" class="form-control" list="product-options" placeholder="e.g. Milk 1L" value="{{ form_data.product_name }}" required>
+                            <datalist id="product-options">
+                                {% for product in products %}
+                                    <option value="{{ product }}"></option>
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                        <div>
+                            <label for="category" class="form-label">Category</label>
+                            <input type="text" id="category" name="category" class="form-control" list="category-options" placeholder="e.g. Dairy" value="{{ form_data.category }}" required>
+                            <datalist id="category-options">
+                                {% for category in categories %}
+                                    <option value="{{ category }}"></option>
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                        <div>
+                            <label for="inventory" class="form-label">Current Inventory</label>
+                            <input type="number" id="inventory" name="inventory" class="form-control" min="0" step="1" placeholder="e.g. 24" value="{{ form_data.inventory }}" required>
+                        </div>
+                        <div>
+                            <label for="expiry_date" class="form-label">Expiry Date</label>
+                            <input type="date" id="expiry_date" name="expiry_date" class="form-control" value="{{ form_data.expiry_date }}" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-label"><i class="bi bi-activity"></i>Sales Performance</div>
+                    <div class="predict-grid">
+                        <div>
+                            <label for="sales_today" class="form-label">Units Sold Today</label>
+                            <input type="number" id="sales_today" name="sales_today" class="form-control" min="0" step="1" placeholder="e.g. 18" value="{{ form_data.sales_today }}" required>
+                        </div>
+                        <div>
+                            <label for="sales_yesterday" class="form-label">Units Sold Yesterday</label>
+                            <input type="number" id="sales_yesterday" name="sales_yesterday" class="form-control" min="0" step="1" placeholder="e.g. 12" value="{{ form_data.sales_yesterday }}" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn predict-btn predict-btn-primary">
+                        <i class="bi bi-magic"></i>Predict Price
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="side-stack">
+            <div class="prediction-result">
+                <div class="result-label">Recommended Price</div>
+                {% if price %}
+                    <div class="result-value">${{ price|floatformat:2 }}</div>
+                    <div class="result-note">Predicted optimal price for tomorrow based on the submitted product signals.</div>
+                {% elif prediction_error %}
+                    <div class="result-error">{{ prediction_error }}</div>
+                {% else %}
+                    <div class="result-empty">
+                        <i class="bi bi-stars"></i>
+                        <span>Submit the form to generate an AI price recommendation.</span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="signal-card factor-demand">
+                <div class="signal-label">Demand Signal</div>
+                <div class="signal-title"><i class="bi bi-activity"></i>Recent sales trend</div>
+                <div class="signal-note">
+                    {% if demand_change != None %}
+                        Demand change: {% if demand_change > 0 %}+{% endif %}{{ demand_change|floatformat:0 }}%
+                    {% else %}
+                        Uses today's and yesterday's units sold.
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="signal-card factor-expiry">
+                <div class="signal-label">Expiry Signal</div>
+                <div class="signal-title"><i class="bi bi-calendar-event"></i>Time-sensitive pricing</div>
+                <div class="signal-note">Products closer to expiry can be tested for markdown behavior.</div>
+            </div>
+
+            <div class="signal-card factor-stock">
+                <div class="signal-label">Stock Signal</div>
+                <div class="signal-title"><i class="bi bi-box"></i>Inventory pressure</div>
+                <div class="signal-note">Remaining stock count helps the model balance price and sell-through.</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -3,165 +3,738 @@
 
 {% block title %}AI Pricing Dashboard{% endblock %}
 
-{% block page_title %}💰 AI Pricing Recommendations{% endblock %}
+{% block page_title %}<i class="bi bi-robot me-2"></i>AI Pricing{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Force dark background for main content */
     .main-content {
-        background-color: #0f0f1a !important;
-    }
-    .lead {
-        color: #cdd9ed !important;
-    }
-    .card {
-        background-color: #1e1e2f !important;
-        border: 1px solid #2d2d3a !important;
-    }
-    .table, .table tbody, .table tr, .table td, .table th {
-        background-color: #1e1e2f !important;
-        color: #cdd9ed !important;
-    }
-    .table thead th {
-        background-color: #2d2d3a !important;
-        color: #ffffff !important;
-    }
-    .table tbody tr:hover {
-        background-color: #2d2d3a !important;
+        background:
+            linear-gradient(180deg, rgba(20, 25, 35, 0.98) 0%, rgba(11, 14, 20, 1) 100%) !important;
     }
 
-    /* Trend badges - solid background with white text */
-    .trend-up {
-        background-color: #2ea043 !important;  /* green */
-        color: #ffffff !important;
-        padding: 4px 12px;
-        border-radius: 20px;
-        display: inline-block;
-        font-weight: 600;
-    }
-    .trend-down {
-        background-color: #f85149 !important;  /* red */
-        color: #ffffff !important;
-        padding: 4px 12px;
-        border-radius: 20px;
-        display: inline-block;
-        font-weight: 600;
-    }
-    .trend-flat {
-        background-color: #6e7681 !important;  /* grey */
-        color: #ffffff !important;
-        padding: 4px 12px;
-        border-radius: 20px;
-        display: inline-block;
-        font-weight: 600;
+    .pricing-page {
+        --pricing-bg: #111722;
+        --pricing-panel: #171d2a;
+        --pricing-panel-strong: #1d2534;
+        --pricing-line: #2a3446;
+        --pricing-line-soft: rgba(129, 148, 175, 0.18);
+        --pricing-text: #eef4fb;
+        --pricing-muted: #9baabe;
+        --pricing-blue: #5aa2ff;
+        --pricing-teal: #45d6c5;
+        --pricing-green: #71d66f;
+        --pricing-amber: #ffcc66;
+        --pricing-red: #ff7a7a;
+        color: var(--pricing-text);
     }
 
-    .expiry-soon { color: #ff7b72; }
-    .expiry-expired { color: #f85149; }
-    .expiry-normal { color: #7ee787; }
+    .pricing-command-bar,
+    .pricing-panel,
+    .pricing-stat {
+        background: linear-gradient(180deg, rgba(29, 37, 52, 0.95), rgba(20, 26, 38, 0.98));
+        border: 1px solid var(--pricing-line);
+        border-radius: 8px;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.24);
+    }
+
+    .pricing-command-bar {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        padding: 1rem;
+    }
+
+    .pricing-command-title {
+        align-items: center;
+        display: flex;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+
+    .pricing-command-title .title-icon {
+        align-items: center;
+        background: rgba(69, 214, 197, 0.14);
+        border: 1px solid rgba(69, 214, 197, 0.28);
+        border-radius: 8px;
+        color: var(--pricing-teal);
+        display: inline-flex;
+        height: 2.65rem;
+        justify-content: center;
+        width: 2.65rem;
+    }
+
+    .pricing-command-title h2 {
+        color: #ffffff;
+        font-size: 1rem;
+        line-height: 1.15;
+        margin: 0;
+    }
+
+    .pricing-command-title span {
+        color: var(--pricing-muted);
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.2rem;
+    }
+
+    .pricing-command-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        justify-content: flex-end;
+    }
+
+    .pricing-btn {
+        align-items: center;
+        border-radius: 8px;
+        display: inline-flex;
+        font-weight: 700;
+        gap: 0.45rem;
+        justify-content: center;
+        min-height: 2.5rem;
+        padding: 0.55rem 0.9rem;
+        white-space: nowrap;
+    }
+
+    .pricing-btn-primary {
+        background: linear-gradient(135deg, #2f7df4, #45d6c5);
+        border: 0;
+        color: #ffffff;
+    }
+
+    .pricing-btn-primary:hover {
+        color: #ffffff;
+        filter: brightness(1.06);
+    }
+
+    .pricing-btn-secondary {
+        background: #20293a;
+        border: 1px solid var(--pricing-line);
+        color: #dbe7f5;
+    }
+
+    .pricing-btn-secondary:hover {
+        background: #263145;
+        border-color: #40516c;
+        color: #ffffff;
+    }
+
+    .pricing-stat-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-bottom: 1rem;
+    }
+
+    .pricing-stat {
+        min-height: 126px;
+        overflow: hidden;
+        padding: 1rem;
+        position: relative;
+    }
+
+    .pricing-stat::before {
+        content: "";
+        height: 3px;
+        left: 0;
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+
+    .pricing-stat.stat-total::before { background: var(--pricing-blue); }
+    .pricing-stat.stat-increase::before { background: var(--pricing-green); }
+    .pricing-stat.stat-decrease::before { background: var(--pricing-red); }
+    .pricing-stat.stat-expiry::before { background: var(--pricing-amber); }
+
+    .pricing-stat-top {
+        align-items: center;
+        display: flex;
+        gap: 0.75rem;
+        justify-content: space-between;
+        margin-bottom: 1.1rem;
+    }
+
+    .pricing-stat-label {
+        color: var(--pricing-muted);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .pricing-stat-icon {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--pricing-line-soft);
+        border-radius: 8px;
+        display: inline-flex;
+        height: 2.3rem;
+        justify-content: center;
+        width: 2.3rem;
+    }
+
+    .pricing-stat-value {
+        color: #ffffff;
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .pricing-stat-note {
+        color: #b1bfd0;
+        font-size: 0.82rem;
+        margin-top: 0.7rem;
+    }
+
+    .pricing-panel {
+        overflow: hidden;
+    }
+
+    .pricing-panel-header {
+        align-items: center;
+        border-bottom: 1px solid var(--pricing-line);
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        padding: 1rem;
+    }
+
+    .pricing-panel-header h3 {
+        color: #ffffff;
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .pricing-panel-header span {
+        color: var(--pricing-muted);
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.25rem;
+    }
+
+    .model-factor-strip {
+        border-bottom: 1px solid var(--pricing-line);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        padding: 0.9rem 1rem;
+    }
+
+    .model-factor {
+        align-items: center;
+        background: rgba(90, 162, 255, 0.1);
+        border: 1px solid rgba(90, 162, 255, 0.22);
+        border-radius: 999px;
+        color: #c9e1ff;
+        display: inline-flex;
+        font-size: 0.78rem;
+        font-weight: 800;
+        gap: 0.4rem;
+        padding: 0.35rem 0.7rem;
+        white-space: nowrap;
+    }
+
+    .model-factor.factor-demand {
+        background: rgba(69, 214, 197, 0.12);
+        border-color: rgba(69, 214, 197, 0.28);
+        color: #a6fff4;
+    }
+
+    .model-factor.factor-expiry {
+        background: rgba(255, 204, 102, 0.12);
+        border-color: rgba(255, 204, 102, 0.28);
+        color: #ffe2a3;
+    }
+
+    .model-factor.factor-stock {
+        background: rgba(113, 214, 111, 0.12);
+        border-color: rgba(113, 214, 111, 0.28);
+        color: #a7f3a5;
+    }
+
+    .pricing-table-wrap {
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    .pricing-table {
+        color: #dce6f3 !important;
+        margin: 0;
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .pricing-table thead th {
+        background: #151d2a !important;
+        border-bottom: 1px solid var(--pricing-line) !important;
+        color: #f6f8fb !important;
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        padding: 0.6rem 0.55rem;
+        text-transform: uppercase;
+        white-space: normal;
+    }
+
+    .pricing-table tbody td {
+        background: #171d2a !important;
+        border-bottom: 1px solid rgba(129, 148, 175, 0.14) !important;
+        color: #dce6f3 !important;
+        padding: 0.65rem 0.55rem;
+        vertical-align: middle;
+    }
+
+    .pricing-table tbody tr:hover td {
+        background: #1d2637 !important;
+    }
+
+    .product-cell {
+        min-width: 0;
+    }
+
+    .product-name {
+        color: #ffffff;
+        display: block;
+        font-size: 0.9rem;
+        font-weight: 800;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .category-chip,
+    .status-badge,
+    .demand-badge,
+    .expiry-badge {
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.72rem;
+        font-weight: 800;
+        padding: 0.25rem 0.6rem;
+        white-space: nowrap;
+    }
+
+    .category-chip {
+        background: rgba(90, 162, 255, 0.12);
+        border: 1px solid rgba(90, 162, 255, 0.22);
+        color: #b9d8ff;
+        line-height: 1.2;
+        margin-top: 0.35rem;
+        max-width: 100%;
+        white-space: normal;
+    }
+
+    .demand-cell,
+    .price-cell,
+    .stock-cell {
+        min-width: 0;
+    }
+
+    .demand-badge {
+        color: #ffffff;
+        margin-bottom: 0.35rem;
+    }
+
+    .demand-rising { background: rgba(46, 160, 67, 0.95); }
+    .demand-falling { background: rgba(248, 81, 73, 0.95); }
+    .demand-stable { background: rgba(110, 118, 129, 0.95); }
+
+    .cell-note {
+        color: #9baabe;
+        display: block;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        white-space: normal;
+    }
+
+    .stock-value,
+    .price-value {
+        color: #ffffff;
+        display: block;
+        font-size: 0.94rem;
+        font-weight: 800;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    .stock-low {
+        color: var(--pricing-amber);
+    }
+
+    .stock-empty {
+        color: var(--pricing-red);
+    }
+
+    .expiry-badge {
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .expiry-badge.expiry-soon {
+        background: rgba(255, 204, 102, 0.13);
+        border: 1px solid rgba(255, 204, 102, 0.28);
+        color: #ffe2a3;
+    }
+
+    .expiry-badge.expiry-expired {
+        background: rgba(255, 122, 122, 0.13);
+        border: 1px solid rgba(255, 122, 122, 0.28);
+        color: #ffc2c2;
+    }
+
+    .expiry-badge.expiry-normal {
+        background: rgba(113, 214, 111, 0.12);
+        border: 1px solid rgba(113, 214, 111, 0.28);
+        color: #a7f3a5;
+    }
+
+    .status-badge {
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .status-badge.trend-up {
+        background: rgba(46, 160, 67, 0.15);
+        border: 1px solid rgba(46, 160, 67, 0.3);
+        color: #a7f3a5;
+    }
+
+    .status-badge.trend-down {
+        background: rgba(248, 81, 73, 0.15);
+        border: 1px solid rgba(248, 81, 73, 0.3);
+        color: #ffb4b0;
+    }
+
+    .status-badge.trend-flat {
+        background: rgba(129, 148, 175, 0.13);
+        border: 1px solid rgba(129, 148, 175, 0.28);
+        color: #c9d5e6;
+    }
+
+    .change-detail {
+        color: #9baabe;
+        display: block;
+        font-size: 0.78rem;
+        margin-top: 0.35rem;
+        white-space: normal;
+    }
+
+    .reason-cell {
+        min-width: 0;
+    }
+
+    .reason-text {
+        color: #dce6f3;
+        font-size: 0.84rem;
+        line-height: 1.45;
+        margin-bottom: 0.55rem;
+        overflow-wrap: anywhere;
+    }
+
+    .factor-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
+    .factor-chip {
+        border: 1px solid #3b4556;
+        border-radius: 999px;
+        color: #a8b3c7;
+        font-size: 0.72rem;
+        font-weight: 800;
+        padding: 0.22rem 0.55rem;
+        white-space: nowrap;
+    }
+
+    .row-actions {
+        display: inline-flex;
+        justify-content: flex-end;
+    }
+
+    .row-actions .btn {
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        min-height: 2rem;
+        min-width: 4.6rem;
+        padding: 0.25rem 0.55rem;
+        white-space: nowrap;
+    }
+
+    .empty-row {
+        color: var(--pricing-muted);
+        text-align: center;
+    }
+
+    @media (max-width: 1200px) {
+        .pricing-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 992px) {
+        .pricing-table,
+        .pricing-table thead,
+        .pricing-table tbody,
+        .pricing-table tr,
+        .pricing-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .pricing-table thead {
+            display: none;
+        }
+
+        .pricing-table tbody tr {
+            background: #171d2a;
+            border-bottom: 1px solid var(--pricing-line);
+            padding: 0.65rem 0;
+        }
+
+        .pricing-table tbody td {
+            align-items: start;
+            border-bottom: 0 !important;
+            display: grid;
+            gap: 0.75rem;
+            grid-template-columns: minmax(88px, 34%) minmax(0, 1fr);
+            padding: 0.48rem 0.85rem;
+            text-align: left !important;
+        }
+
+        .pricing-table tbody td::before {
+            color: var(--pricing-muted);
+            content: attr(data-label);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            line-height: 1.4;
+            text-transform: uppercase;
+        }
+
+        .pricing-table tbody td.empty-row {
+            display: block;
+            text-align: center !important;
+        }
+
+        .pricing-table tbody td.empty-row::before {
+            content: "";
+        }
+
+        .row-actions {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .pricing-command-bar,
+        .pricing-panel-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .pricing-command-actions {
+            justify-content: stretch;
+        }
+
+        .pricing-command-actions .pricing-btn,
+        .pricing-command-actions form {
+            width: 100%;
+        }
+
+        .pricing-stat-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-summary row g-4 mb-4">
-    <div class="col-sm-6 col-lg-4">
-        <div class="metric-card shadow-sm h-100">
-            <div class="d-flex align-items-start mb-3">
-                <span class="metric-icon"><i class="bi bi-lightning-charge"></i></span>
-                <div>
-                    <div class="metric-label">Recommendations</div>
-                    <div class="metric-value">{{ report_data|length }}</div>
-                </div>
+<div class="pricing-page">
+    <div class="pricing-command-bar">
+        <div class="pricing-command-title">
+            <span class="title-icon"><i class="bi bi-cpu"></i></span>
+            <div>
+                <h2>Pricing Model</h2>
+                <span>{{ pricing_summary.total }} recommendations for {{ current_date|date:"M j, Y" }}</span>
             </div>
-            <div class="metric-note">Active AI pricing recommendations.</div>
+        </div>
+        <div class="pricing-command-actions">
+            <a href="{{ request.get_full_path }}" class="btn pricing-btn pricing-btn-secondary">
+                <i class="bi bi-arrow-clockwise"></i>Refresh
+            </a>
+            <a href="{% url 'predict_price' %}" class="btn pricing-btn pricing-btn-secondary">
+                <i class="bi bi-calculator"></i>Test Prediction
+            </a>
+            <form method="post" class="m-0">
+                {% csrf_token %}
+                <button type="submit" name="apply_all" class="btn pricing-btn pricing-btn-primary">
+                    <i class="bi bi-check2-circle"></i>Apply All
+                </button>
+            </form>
         </div>
     </div>
-    <div class="col-sm-6 col-lg-4">
-        <div class="metric-card shadow-sm h-100">
-            <div class="d-flex align-items-start mb-3">
-                <span class="metric-icon"><i class="bi bi-calendar-check"></i></span>
-                <div>
-                    <div class="metric-label">Current Date</div>
-                    <div class="metric-value">{{ current_date|date:"M j, Y" }}</div>
-                </div>
-            </div>
-            <div class="metric-note">Context for price expiry and inventory alerts.</div>
-        </div>
-    </div>
-    <div class="col-sm-12 col-lg-4">
-        <div class="metric-card shadow-sm h-100">
-            <div class="d-flex align-items-start mb-3">
-                <span class="metric-icon"><i class="bi bi-graph-up"></i></span>
-                <div>
-                    <div class="metric-label">Pricing Insight</div>
-                    <div class="metric-value">AI-driven</div>
-                </div>
-            </div>
-            <div class="metric-note">Smart recommendations for margin improvement.</div>
-        </div>
-    </div>
-</div>
 
-<div class="card section-card shadow-sm mb-4">
-    <div class="card-body d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
-        <div>
-            <h5 class="card-title section-heading">AI Pricing Controls</h5>
+    <div class="pricing-stat-grid">
+        <div class="pricing-stat stat-total">
+            <div class="pricing-stat-top">
+                <div class="pricing-stat-label">Recommendations</div>
+                <span class="pricing-stat-icon"><i class="bi bi-lightning-charge"></i></span>
+            </div>
+            <div class="pricing-stat-value">{{ pricing_summary.total }}</div>
+            <div class="pricing-stat-note">Active AI outputs</div>
         </div>
-        <form method="POST" class="m-0 d-flex flex-column flex-md-row gap-2 align-items-md-end">
-            {% csrf_token %}
-            <button type="submit" name="apply_all" class="btn btn-primary">Apply All AI Recommendations</button>
-        </form>
+        <div class="pricing-stat stat-increase">
+            <div class="pricing-stat-top">
+                <div class="pricing-stat-label">Increase</div>
+                <span class="pricing-stat-icon"><i class="bi bi-graph-up-arrow"></i></span>
+            </div>
+            <div class="pricing-stat-value">{{ pricing_summary.increase_count }}</div>
+            <div class="pricing-stat-note">Higher predicted prices</div>
+        </div>
+        <div class="pricing-stat stat-decrease">
+            <div class="pricing-stat-top">
+                <div class="pricing-stat-label">Decrease</div>
+                <span class="pricing-stat-icon"><i class="bi bi-graph-down-arrow"></i></span>
+            </div>
+            <div class="pricing-stat-value">{{ pricing_summary.decrease_count }}</div>
+            <div class="pricing-stat-note">Markdown opportunities</div>
+        </div>
+        <div class="pricing-stat stat-expiry">
+            <div class="pricing-stat-top">
+                <div class="pricing-stat-label">Expiry Alerts</div>
+                <span class="pricing-stat-icon"><i class="bi bi-calendar2-exclamation"></i></span>
+            </div>
+            <div class="pricing-stat-value">{{ pricing_summary.urgent_expiry_count }}</div>
+            <div class="pricing-stat-note">Within seven days</div>
+        </div>
     </div>
-</div>
 
-<div class="card shadow-sm">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+    <div class="pricing-panel">
+        <div class="pricing-panel-header">
+            <div>
+                <h3>Product Price Predictions</h3>
+                <span>Demand, expiry, and stock signals</span>
+            </div>
+        </div>
+
+        <div class="model-factor-strip">
+            <span class="model-factor factor-demand"><i class="bi bi-activity"></i>Demand</span>
+            <span class="model-factor factor-expiry"><i class="bi bi-calendar-event"></i>Expiry date</span>
+            <span class="model-factor factor-stock"><i class="bi bi-box-seam"></i>Stock count</span>
+        </div>
+
+        <div class="pricing-table-wrap">
+            <table class="table pricing-table align-middle">
+                <colgroup>
+                    <col style="width: 14%;">
+                    <col style="width: 8%;">
+                    <col style="width: 11%;">
+                    <col style="width: 8%;">
+                    <col style="width: 9%;">
+                    <col style="width: 9%;">
+                    <col style="width: 11%;">
+                    <col style="width: 22%;">
+                    <col style="width: 8%;">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Product</th>
-                        <th>Category</th>
-                        <th>Current Price</th>
-                        <th>Expiry Date</th>
-                        <th>Available Stock</th>
-                        <th>Days Until Expiry</th>
-                        <th>AI Recommended Price</th>
-                        <th>Trend</th>
-                        <th>Action</th>
+                        <th>Demand %</th>
+                        <th>Expiry</th>
+                        <th>Stock</th>
+                        <th>Current</th>
+                        <th>AI Price</th>
+                        <th>Change</th>
+                        <th>AI Explanation</th>
+                        <th class="text-end">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in report_data %}
                     <tr>
-                        <td>{{ item.product.name }}</td>
-                        <td>{{ item.product.category }}</td>
-                        <td>${{ item.current_price|floatformat:2 }}</td>
-                        <td>{{ item.product.expiry_date|date:"F j, Y" }}</td>
-                        <td>{{ item.product.inventory_level }}</td>
-                        <td>
+                        <td data-label="Product">
+                            <div class="product-cell">
+                                <span class="product-name">{{ item.product.name }}</span>
+                                <span class="category-chip">{{ item.product.category }}</span>
+                            </div>
+                        </td>
+                        <td class="demand-cell" data-label="Demand %">
+                            <span class="demand-badge {{ item.demand_class }}">
+                                {% if item.demand_change > 0 %}+{% endif %}{{ item.demand_change|floatformat:0 }}%
+                            </span>
+                        </td>
+                        <td data-label="Expiry">
                             {% if item.days_until_expiry < 0 %}
-                                <span class="expiry-expired">Expired ({{ item.days_until_expiry }} days)</span>
+                                <span class="expiry-badge expiry-expired"><i class="bi bi-exclamation-octagon"></i>Expired</span>
                             {% elif item.days_until_expiry <= 7 %}
-                                <span class="expiry-soon">{{ item.days_until_expiry }} days</span>
+                                <span class="expiry-badge expiry-soon"><i class="bi bi-clock-history"></i>{{ item.days_until_expiry }} days</span>
                             {% else %}
-                                <span class="expiry-normal">{{ item.days_until_expiry }} days</span>
+                                <span class="expiry-badge expiry-normal"><i class="bi bi-check2-circle"></i>{{ item.days_until_expiry }} days</span>
                             {% endif %}
-                         </td>
-                        <td>${{ item.ai_price|floatformat:2 }}</td>
-                        <td><span class="{{ item.css_class }}">{{ item.icon|default:'' }} {{ item.status|default:'' }}</span></td>
-                        <td>
-                            <form id="ai-price-{{ item.product.id }}" method="post" action="{% url 'apply_single_price' %}" style="display:inline;">
+                            <span class="cell-note">{{ item.product.expiry_date|date:"M j, Y" }}</span>
+                        </td>
+                        <td class="stock-cell" data-label="Stock">
+                            {% if item.product.inventory_level <= 0 %}
+                                <span class="stock-value stock-empty">{{ item.product.inventory_level }}</span>
+                                <span class="cell-note">out of stock</span>
+                            {% elif item.product.inventory_level <= 5 %}
+                                <span class="stock-value stock-low">{{ item.product.inventory_level }}</span>
+                                <span class="cell-note">low stock</span>
+                            {% else %}
+                                <span class="stock-value">{{ item.product.inventory_level }}</span>
+                                <span class="cell-note">units left</span>
+                            {% endif %}
+                        </td>
+                        <td class="price-cell" data-label="Current">
+                            <span class="price-value">${{ item.current_price|floatformat:2 }}</span>
+                            <span class="cell-note">current price</span>
+                        </td>
+                        <td class="price-cell" data-label="AI Price">
+                            <span class="price-value">${{ item.ai_price|floatformat:2 }}</span>
+                            <span class="cell-note">predicted price</span>
+                        </td>
+                        <td data-label="Change">
+                            <span class="status-badge {{ item.css_class }}">
+                                {% if item.status == "Increase" %}
+                                    <i class="bi bi-arrow-up-right"></i>
+                                {% elif item.status == "Decrease" %}
+                                    <i class="bi bi-arrow-down-right"></i>
+                                {% else %}
+                                    <i class="bi bi-dash-lg"></i>
+                                {% endif %}
+                                {{ item.status }}
+                            </span>
+                            <span class="change-detail">
+                                {% if item.price_delta > 0 %}+{% elif item.price_delta < 0 %}-{% endif %}${{ item.price_delta_abs|floatformat:2 }}
+                                ({% if item.price_delta_percent > 0 %}+{% endif %}{{ item.price_delta_percent|floatformat:0 }}%)
+                            </span>
+                        </td>
+                        <td class="reason-cell" data-label="AI Explanation">
+                            <div class="reason-text">{{ item.pricing_reason }}</div>
+                            <div class="factor-list" aria-label="Pricing factors">
+                                <span class="factor-chip">Demand</span>
+                                <span class="factor-chip">Expiry</span>
+                                <span class="factor-chip">Stock</span>
+                            </div>
+                        </td>
+                        <td class="text-end" data-label="Action">
+                            <form id="ai-price-{{ item.product.id }}" method="post" action="{% url 'apply_single_price' %}" class="row-actions">
                                 {% csrf_token %}
                                 <input type="hidden" name="product_id" value="{{ item.product.id }}">
                                 <input type="hidden" name="new_price" value="{{ item.ai_price }}">
-                                <button type="submit" class="btn btn-outline-primary btn-sm">Apply</button>
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-check2 me-1"></i>Apply
+                                </button>
                             </form>
-                         </td>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="10" class="text-center py-4">No AI pricing recommendations are available right now.</td>
+                        <td colspan="9" class="empty-row py-4">No AI pricing recommendations are available right now.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
