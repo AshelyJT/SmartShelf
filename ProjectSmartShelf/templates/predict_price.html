@@ -593,7 +593,7 @@
                     </div>
                     <div>
                         <label for="days_until_expiry" class="form-label">Days Until Expiry</label>
-                        <input type="number" id="days_until_expiry" name="days_until_expiry" class="form-control" step="1" placeholder="e.g. 12" value="{{ advanced_form_data.days_until_expiry }}" required>
+                        <input type="number" id="days_until_expiry" class="form-control" step="1" value="{% if advanced_days_until_expiry != None %}{{ advanced_days_until_expiry }}{% endif %}" readonly>
                     </div>
                     <div>
                         <label for="sales_lag_1" class="form-label">Sales Lag 1</label>
@@ -736,7 +736,14 @@
             const predictionDateInput = document.getElementById("prediction_date");
             const daysInput = document.getElementById("days_until_expiry");
             const option = selectedOption(advancedProductSelect);
-            if (!option || !option.dataset.expiry || !predictionDateInput.value) return;
+            if (!option || !option.value || !predictionDateInput.value) {
+                daysInput.value = "";
+                return;
+            }
+            if (!option.dataset.expiry) {
+                daysInput.value = "30";
+                return;
+            }
             daysInput.value = daysBetween(option.dataset.expiry, predictionDateInput.value);
         }
 
@@ -773,6 +780,7 @@
         const predictionDateInput = document.getElementById("prediction_date");
         syncProductFields(advancedProductSelect, advancedCategoryDisplay, advancedInventoryInput, null, false);
         updateAdvancedTimeFeatures();
+        syncAdvancedDaysUntilExpiry();
         advancedProductSelect.addEventListener("change", function () {
             syncProductFields(advancedProductSelect, advancedCategoryDisplay, advancedInventoryInput, null, true);
             syncAdvancedDaysUntilExpiry();

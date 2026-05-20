@@ -3,7 +3,7 @@
 
 {% block title %}AI Recommendations{% endblock %}
 
-{% block page_title %}💡 Smart Recommendations{% endblock %}
+{% block page_title %}<i class="bi bi-lightbulb me-2"></i>Smart Recommendations{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -174,11 +174,11 @@
                             {% endif %}
                         </td>
                         <td class="rec-type">
-                            {% if rec.rec_type == 'price_increase' %}⬆️ Price Increase
-                            {% elif rec.rec_type == 'price_decrease' %}⬇️ Price Decrease
-                            {% elif rec.rec_type == 'clearance' %}🏷️ Clearance
-                            {% elif rec.rec_type == 'markdown' %}💰 Markdown
-                            {% elif rec.rec_type == 'restock' %}📦 Restock
+                            {% if rec.rec_type == 'price_increase' %}<i class="bi bi-arrow-up-right me-1"></i>Price Increase
+                            {% elif rec.rec_type == 'price_decrease' %}<i class="bi bi-arrow-down-right me-1"></i>Price Decrease
+                            {% elif rec.rec_type == 'clearance' %}<i class="bi bi-tag me-1"></i>Clearance
+                            {% elif rec.rec_type == 'markdown' %}<i class="bi bi-cash-coin me-1"></i>Markdown
+                            {% elif rec.rec_type == 'restock' %}<i class="bi bi-box-seam me-1"></i>Restock
                             {% else %}{{ rec.rec_type }}
                             {% endif %}
                         </td>

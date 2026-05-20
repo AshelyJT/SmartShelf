@@ -6,7 +6,7 @@
         <div class="tagline text-light">AI-POWERED RETAIL DISPLAYS</div>
     </div>
 
-    <div>
+    <div class="sidebar-nav-scroll">
         <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link {% if request.resolver_match.url_name == 'staff_dashboard' %}active{% endif %}" 
@@ -66,11 +66,13 @@
             </li>
         </ul>
     </div>
-    <hr class="mt-auto">
-    <form method="post" action="{% url 'staff_logout' %}">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-outline-danger w-100">
-            <i class="bi bi-box-arrow-right"></i> Logout
-        </button>
-    </form>
+    <div class="sidebar-footer">
+        <hr class="sidebar-divider">
+        <form method="post" action="{% url 'staff_logout' %}" class="sidebar-logout">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger w-100">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </button>
+        </form>
+    </div>
 </nav>

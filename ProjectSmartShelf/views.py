@@ -380,6 +380,7 @@ def predict_tomorrow_price(request):
     advanced_price = None
     advanced_error = None
     advanced_demand_change = None
+    advanced_days_until_expiry = None
     advanced_expired_pricing_rule = False
     advanced_feature_preview = {}
     prediction_mode = request.POST.get("prediction_mode", "simple") if request.method == "POST" else ""
@@ -438,7 +439,10 @@ def predict_tomorrow_price(request):
                 raise ValueError("Prediction date is required.")
 
             inventory = float(request.POST.get("advanced_inventory"))
-            days_until_expiry = float(request.POST.get("days_until_expiry"))
+            if selected_product.expiry_date:
+                advanced_days_until_expiry = (selected_product.expiry_date - prediction_date).days
+            else:
+                advanced_days_until_expiry = 30
             sales_lag_1 = float(request.POST.get("sales_lag_1"))
             sales_lag_2 = float(request.POST.get("sales_lag_2"))
             if sales_lag_2 == 0:
@@ -454,7 +458,7 @@ def predict_tomorrow_price(request):
                 "is_weekend": 1 if prediction_date.weekday() >= 5 else 0,
             }
 
-            advanced_expired_pricing_rule = days_until_expiry < 0
+            advanced_expired_pricing_rule = advanced_days_until_expiry < 0
             if advanced_expired_pricing_rule:
                 advanced_price = Decimal('0.00')
             else:
@@ -466,7 +470,7 @@ def predict_tomorrow_price(request):
                         selected_product.name,
                         selected_product.category,
                         inventory,
-                        days_until_expiry,
+                        advanced_days_until_expiry,
                         sales_lag_1,
                         sales_lag_2,
                         advanced_demand_change,
@@ -497,6 +501,7 @@ def predict_tomorrow_price(request):
         "advanced_price": advanced_price,
         "advanced_error": advanced_error,
         "advanced_demand_change": advanced_demand_change,
+        "advanced_days_until_expiry": advanced_days_until_expiry,
         "advanced_expired_pricing_rule": advanced_expired_pricing_rule,
         "advanced_feature_preview": advanced_feature_preview,
         "advanced_form_data": advanced_form_data,
