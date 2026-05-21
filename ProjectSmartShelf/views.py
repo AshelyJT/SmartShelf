@@ -8,7 +8,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.core.paginator import Paginator
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, Count, Avg
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -18,7 +18,7 @@ from checkout.models import Product
 from decimal import Decimal
 from .models import DailyProductSales, PriceHistory, ScheduledPromotion
 from .apps import ProjectsmartshelfConfig
-from .ml_models.utils import prepare_advanced_input, prepare_input_for_tomorrow, predict_prices_batch
+from .ml_models.utils import calculate_demand_change, prepare_advanced_input, prepare_input_for_tomorrow, predict_prices_batch
 from .recommendations import build_recommendations
 from .simulation import (
     clear_active_simulated_date,
@@ -309,6 +309,192 @@ def sales_report_api(request):
         }
     )
 
+
+def get_sales_report_default_dates(request):
+    latest_summary_date = (
+        DailyProductSales.objects.order_by('-date')
+        .values_list('date', flat=True)
+        .first()
+    )
+    end_date = latest_summary_date or get_active_day(request)
+    start_date = end_date - timedelta(days=30)
+    return start_date, end_date
+
+
+def get_sales_report_filters(request):
+    default_start, default_end = get_sales_report_default_dates(request)
+    start_date_raw = request.GET.get('start_date', '').strip()
+    end_date_raw = request.GET.get('end_date', '').strip()
+    category = request.GET.get('category', '').strip()
+    product_name = request.GET.get('product_name', '').strip()
+
+    start_date = parse_date(start_date_raw) if start_date_raw else default_start
+    end_date = parse_date(end_date_raw) if end_date_raw else default_end
+
+    warnings = []
+    if start_date_raw and start_date is None:
+        start_date = default_start
+        warnings.append("The start date was not valid, so the default range is being shown.")
+    if end_date_raw and end_date is None:
+        end_date = default_end
+        warnings.append("The end date was not valid, so the default range is being shown.")
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+        warnings.append("The date range was reversed, so SmartShelf swapped the start and end dates.")
+
+    return {
+        'start_date': start_date,
+        'end_date': end_date,
+        'category': category,
+        'product_name': product_name,
+        'warnings': warnings,
+    }
+
+
+def get_filtered_sales_report_queryset(filters):
+    queryset = DailyProductSales.objects.all()
+    queryset = queryset.filter(date__gte=filters['start_date'], date__lte=filters['end_date'])
+
+    if filters['category']:
+        queryset = queryset.filter(category=filters['category'])
+    if filters['product_name']:
+        queryset = queryset.filter(product_name=filters['product_name'])
+
+    return queryset
+
+
+def build_sales_report_context(request):
+    filters = get_sales_report_filters(request)
+    queryset = get_filtered_sales_report_queryset(filters)
+
+    summary = queryset.aggregate(
+        total_units=Sum('units_sold'),
+        total_revenue=Sum('total_revenue'),
+        avg_price=Avg('current_price'),
+        sales_days=Count('date', distinct=True),
+        product_count=Count('product_name', distinct=True),
+    )
+    summary['total_units'] = summary['total_units'] or 0
+    summary['total_revenue'] = summary['total_revenue'] or Decimal('0.00')
+    summary['avg_price'] = summary['avg_price'] or Decimal('0.00')
+    summary['sales_days'] = summary['sales_days'] or 0
+    summary['product_count'] = summary['product_count'] or 0
+    summary['record_count'] = queryset.count()
+    if summary['sales_days']:
+        summary['avg_daily_revenue'] = summary['total_revenue'] / summary['sales_days']
+    else:
+        summary['avg_daily_revenue'] = Decimal('0.00')
+
+    daily_data = list(
+        queryset.values('date')
+        .annotate(total_units=Sum('units_sold'), total_revenue=Sum('total_revenue'))
+        .order_by('date')
+    )
+    product_data = list(
+        queryset.values('product_name', 'category')
+        .annotate(
+            total_units=Sum('units_sold'),
+            total_revenue=Sum('total_revenue'),
+            avg_price=Avg('current_price'),
+        )
+        .order_by('-total_revenue', '-total_units', 'product_name')[:25]
+    )
+    category_data = list(
+        queryset.values('category')
+        .annotate(
+            total_units=Sum('units_sold'),
+            total_revenue=Sum('total_revenue'),
+            avg_price=Avg('current_price'),
+            product_count=Count('product_name', distinct=True),
+        )
+        .order_by('-total_revenue', 'category')
+    )
+
+    for item in product_data:
+        item['total_units'] = item['total_units'] or 0
+        item['total_revenue'] = item['total_revenue'] or Decimal('0.00')
+        item['avg_price'] = item['avg_price'] or Decimal('0.00')
+
+    for item in category_data:
+        item['total_units'] = item['total_units'] or 0
+        item['total_revenue'] = item['total_revenue'] or Decimal('0.00')
+        item['avg_price'] = item['avg_price'] or Decimal('0.00')
+        if summary['total_revenue']:
+            item['revenue_share'] = (item['total_revenue'] / summary['total_revenue']) * 100
+        else:
+            item['revenue_share'] = Decimal('0.00')
+
+    best_product = product_data[0] if product_data else None
+    best_category = category_data[0] if category_data else None
+
+    daily_chart_data = {
+        'labels': [item['date'].strftime('%b %d') for item in daily_data],
+        'units': [item['total_units'] or 0 for item in daily_data],
+        'revenue': [float(item['total_revenue'] or 0) for item in daily_data],
+    }
+    category_chart_data = {
+        'labels': [item['category'] for item in category_data[:8]],
+        'revenue': [float(item['total_revenue'] or 0) for item in category_data[:8]],
+        'units': [item['total_units'] or 0 for item in category_data[:8]],
+    }
+
+    categories = (
+        DailyProductSales.objects.values_list('category', flat=True)
+        .distinct()
+        .order_by('category')
+    )
+    product_names = (
+        DailyProductSales.objects.values_list('product_name', flat=True)
+        .distinct()
+        .order_by('product_name')
+    )
+
+    return {
+        'filters': filters,
+        'summary': summary,
+        'daily_data': daily_data,
+        'product_data': product_data,
+        'category_data': category_data,
+        'best_product': best_product,
+        'best_category': best_category,
+        'daily_chart_data': daily_chart_data,
+        'category_chart_data': category_chart_data,
+        'categories': categories,
+        'product_names': product_names,
+    }
+
+
+@staff_member_required(login_url='staff_login')
+def reports_view(request):
+    context = build_sales_report_context(request)
+    for warning in context['filters']['warnings']:
+        messages.warning(request, warning)
+    return render(request, 'reports.html', context)
+
+
+@staff_member_required(login_url='staff_login')
+def export_sales_report_csv(request):
+    filters = get_sales_report_filters(request)
+    queryset = get_filtered_sales_report_queryset(filters).order_by('date', 'category', 'product_name')
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="sales_report.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['Date', 'Product', 'Category', 'Units Sold', 'Current Price', 'Total Revenue'])
+
+    for item in queryset:
+        writer.writerow([
+            item.date.strftime('%Y-%m-%d'),
+            item.product_name,
+            item.category,
+            item.units_sold,
+            f"${item.current_price:.2f}",
+            f"${item.total_revenue:.2f}",
+        ])
+
+    return response
+
+
 @staff_member_required(login_url='staff_login')
 def product_trend_api(request, product_id=None):
     """API endpoint to get product trend data"""
@@ -402,13 +588,10 @@ def predict_tomorrow_price(request):
             expiry_date = parse_date(expiry)
             if not expiry_date:
                 raise ValueError("Expiry date is required.")
-            sales_today = float(request.POST.get("sales_today"))
             sales_yesterday = float(request.POST.get("sales_yesterday"))
+            sales_day_before_yesterday = float(request.POST.get("sales_day_before_yesterday"))
 
-            if sales_yesterday == 0:
-                demand_change = 0
-            else:
-                demand_change = ((sales_today - sales_yesterday) / sales_yesterday) * 100
+            demand_change = calculate_demand_change(sales_yesterday, sales_day_before_yesterday)
 
             expired_pricing_rule = expiry_date < timezone.now().date()
             if expired_pricing_rule:
@@ -419,7 +602,7 @@ def predict_tomorrow_price(request):
                     prediction_error = "The AI pricing model is not loaded yet."
                 else:
                     input_df = prepare_input_for_tomorrow(
-                        p_name, p_cat, inventory, expiry, sales_today, sales_yesterday, model
+                        p_name, p_cat, inventory, expiry, sales_yesterday, sales_day_before_yesterday, model
                     )
                     result = model.predict(input_df)
                     predicted_price = round(result[0], 2)
@@ -445,10 +628,7 @@ def predict_tomorrow_price(request):
                 advanced_days_until_expiry = 30
             sales_lag_1 = float(request.POST.get("sales_lag_1"))
             sales_lag_2 = float(request.POST.get("sales_lag_2"))
-            if sales_lag_2 == 0:
-                advanced_demand_change = 0
-            else:
-                advanced_demand_change = ((sales_lag_1 - sales_lag_2) / sales_lag_2) * 100
+            advanced_demand_change = calculate_demand_change(sales_lag_1, sales_lag_2)
 
             advanced_feature_preview = {
                 "year": prediction_date.year,
@@ -524,14 +704,15 @@ def pricing_dashboard(request):
     # Run AI Batch Prediction using simulated date as base
     raw_results = predict_prices_batch(base_date=simulated_today)
     yesterday = simulated_today - datetime.timedelta(days=1)
+    day_before_yesterday = simulated_today - datetime.timedelta(days=2)
 
-    sales_today_map = {
-        item.product_name: item.units_sold
-        for item in DailyProductSales.objects.filter(date=simulated_today)
-    }
     sales_yesterday_map = {
         item.product_name: item.units_sold
         for item in DailyProductSales.objects.filter(date=yesterday)
+    }
+    sales_day_before_yesterday_map = {
+        item.product_name: item.units_sold
+        for item in DailyProductSales.objects.filter(date=day_before_yesterday)
     }
 
     final_report = []
@@ -539,13 +720,10 @@ def pricing_dashboard(request):
         current_price = product.price if product.price else Decimal('0.00')
         expiry_date = product.expiry_date
         ai_price = Decimal(str(raw_ai_price)).quantize(Decimal('0.01'))
-        sales_today = sales_today_map.get(product.name, 0)
         sales_yesterday = sales_yesterday_map.get(product.name, 0)
+        sales_day_before_yesterday = sales_day_before_yesterday_map.get(product.name, 0)
 
-        if sales_yesterday == 0:
-            demand_change = 0
-        else:
-            demand_change = ((sales_today - sales_yesterday) / sales_yesterday) * 100
+        demand_change = calculate_demand_change(sales_yesterday, sales_day_before_yesterday)
 
         if demand_change > 5:
             demand_label = "Rising"
@@ -594,7 +772,7 @@ def pricing_dashboard(request):
             css_class = "trend-flat"
 
         pricing_reason = (
-            f"{demand_label} demand ({sales_today} sold today vs {sales_yesterday} yesterday), "
+            f"{demand_label} demand ({sales_yesterday} sold yesterday vs {sales_day_before_yesterday} the day before), "
             f"{expiry_signal}, and {product.inventory_level} units in stock."
         )
 
@@ -604,8 +782,10 @@ def pricing_dashboard(request):
             'current_date': simulated_today,
             'expiry_date': expiry_date,
             'ai_price': ai_price,
-            'sales_today': sales_today,
             'sales_yesterday': sales_yesterday,
+            'sales_day_before_yesterday': sales_day_before_yesterday,
+            'sales_lag_1': sales_yesterday,
+            'sales_lag_2': sales_day_before_yesterday,
             'demand_change': demand_change,
             'demand_label': demand_label,
             'demand_class': demand_class,

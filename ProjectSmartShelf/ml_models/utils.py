@@ -5,8 +5,15 @@ from ProjectSmartShelf.apps import ProjectsmartshelfConfig
 from ProjectSmartShelf.models import DailyProductSales
 from checkout.models import Product
 
+
+def calculate_demand_change(sales_lag_1, sales_lag_2):
+    if sales_lag_2 == 0:
+        return 0
+    return ((sales_lag_1 - sales_lag_2) / sales_lag_2) * 100
+
+
 def prepare_input_for_tomorrow(product_name, category, current_inventory, expiry_date,
-                               sales_today, sales_yesterday, model):
+                               sales_yesterday, sales_day_before_yesterday, model):
    
     # 1. Date Calculations
     tomorrow = datetime.date.today() + datetime.timedelta(days=1)
@@ -15,13 +22,9 @@ def prepare_input_for_tomorrow(product_name, category, current_inventory, expiry
     days_until_expiry = (expiry_date - tomorrow).days
 
     # 2. Lags & Demand Change
-    sales_lag_1 = sales_today
-    sales_lag_2 = sales_yesterday
-   
-    if sales_lag_2 == 0:
-        demand_change = 0
-    else:
-        demand_change = ((sales_lag_1 - sales_lag_2) / sales_lag_2) * 100
+    sales_lag_1 = sales_yesterday
+    sales_lag_2 = sales_day_before_yesterday
+    demand_change = calculate_demand_change(sales_lag_1, sales_lag_2)
 
     # 3. Encoders
     try:
@@ -119,19 +122,20 @@ def predict_prices_batch(base_date=None):
     if base_date is None:
         base_date = datetime.date.today()
     
-    today = base_date
-    yesterday = today - datetime.timedelta(days=1)
-    tomorrow = today + datetime.timedelta(days=1)
+    current_date = base_date
+    yesterday = current_date - datetime.timedelta(days=1)
+    day_before_yesterday = current_date - datetime.timedelta(days=2)
+    tomorrow = current_date + datetime.timedelta(days=1)
 
     # 1. Fetch Sales History in Bulk
-    sales_today_map = {
-        item.product_name: item.units_sold
-        for item in DailyProductSales.objects.filter(date=today)
-    }
-   
     sales_yesterday_map = {
         item.product_name: item.units_sold
         for item in DailyProductSales.objects.filter(date=yesterday)
+    }
+   
+    sales_day_before_yesterday_map = {
+        item.product_name: item.units_sold
+        for item in DailyProductSales.objects.filter(date=day_before_yesterday)
     }
 
     # 2. Get All Products
@@ -140,14 +144,11 @@ def predict_prices_batch(base_date=None):
     valid_products = []
 
     for p in products:
-        s_today = sales_today_map.get(p.name, 0)
         s_yesterday = sales_yesterday_map.get(p.name, 0)
+        s_day_before_yesterday = sales_day_before_yesterday_map.get(p.name, 0)
 
         # Demand Change
-        if s_yesterday == 0:
-            demand_change = 0
-        else:
-            demand_change = ((s_today - s_yesterday) / s_yesterday) * 100
+        demand_change = calculate_demand_change(s_yesterday, s_day_before_yesterday)
 
         # Encode categorical data
         try:
@@ -171,8 +172,8 @@ def predict_prices_batch(base_date=None):
             "category": enc_cat,
             "inventory_level": p.inventory_level,
             "days_until_expiry": days_until_expiry,
-            "sales_lag_1": s_today,
-            "sales_lag_2": s_yesterday,
+            "sales_lag_1": s_yesterday,
+            "sales_lag_2": s_day_before_yesterday,
             "demand_change": demand_change,
             "year": tomorrow.year,
             "month": tomorrow.month,

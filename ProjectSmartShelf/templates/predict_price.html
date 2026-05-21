@@ -483,12 +483,12 @@
                     <div class="section-label"><i class="bi bi-activity"></i>Sales Performance</div>
                     <div class="predict-grid">
                         <div>
-                            <label for="sales_today" class="form-label">Units Sold Today</label>
-                            <input type="number" id="sales_today" name="sales_today" class="form-control" min="0" step="1" placeholder="e.g. 18" value="{{ form_data.sales_today }}" required>
+                            <label for="sales_yesterday" class="form-label">Units Sold Yesterday</label>
+                            <input type="number" id="sales_yesterday" name="sales_yesterday" class="form-control" min="0" step="1" placeholder="e.g. 18" value="{{ form_data.sales_yesterday }}" required>
                         </div>
                         <div>
-                            <label for="sales_yesterday" class="form-label">Units Sold Yesterday</label>
-                            <input type="number" id="sales_yesterday" name="sales_yesterday" class="form-control" min="0" step="1" placeholder="e.g. 12" value="{{ form_data.sales_yesterday }}" required>
+                            <label for="sales_day_before_yesterday" class="form-label">Units Sold Day Before Yesterday</label>
+                            <input type="number" id="sales_day_before_yesterday" name="sales_day_before_yesterday" class="form-control" min="0" step="1" placeholder="e.g. 12" value="{{ form_data.sales_day_before_yesterday }}" required>
                         </div>
                     </div>
                 </div>
@@ -528,7 +528,7 @@
                     {% if demand_change != None %}
                         Demand change: {% if demand_change > 0 %}+{% endif %}{{ demand_change|floatformat:0 }}%
                     {% else %}
-                        Uses today's and yesterday's units sold.
+                        Uses yesterday and the day before yesterday.
                     {% endif %}
                 </div>
             </div>
@@ -596,12 +596,12 @@
                         <input type="number" id="days_until_expiry" class="form-control" step="1" value="{% if advanced_days_until_expiry != None %}{{ advanced_days_until_expiry }}{% endif %}" readonly>
                     </div>
                     <div>
-                        <label for="sales_lag_1" class="form-label">Sales Lag 1</label>
-                        <input type="number" id="sales_lag_1" name="sales_lag_1" class="form-control" min="0" step="1" placeholder="today" value="{{ advanced_form_data.sales_lag_1 }}" required>
+                        <label for="sales_lag_1" class="form-label">Sales Lag 1 (Yesterday)</label>
+                        <input type="number" id="sales_lag_1" name="sales_lag_1" class="form-control" min="0" step="1" placeholder="yesterday" value="{{ advanced_form_data.sales_lag_1 }}" required>
                     </div>
                     <div>
-                        <label for="sales_lag_2" class="form-label">Sales Lag 2</label>
-                        <input type="number" id="sales_lag_2" name="sales_lag_2" class="form-control" min="0" step="1" placeholder="yesterday" value="{{ advanced_form_data.sales_lag_2 }}" required>
+                        <label for="sales_lag_2" class="form-label">Sales Lag 2 (Day Before Yesterday)</label>
+                        <input type="number" id="sales_lag_2" name="sales_lag_2" class="form-control" min="0" step="1" placeholder="day before yesterday" value="{{ advanced_form_data.sales_lag_2 }}" required>
                     </div>
                     <div>
                         <label for="advanced_demand_change" class="form-label">Demand Change (%)</label>

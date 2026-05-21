@@ -8,7 +8,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from checkout.models import Product
-from ProjectSmartShelf.models import PriceHistory, ScheduledPromotion
+from ProjectSmartShelf.ml_models import utils as pricing_utils
+from ProjectSmartShelf.models import DailyProductSales, PriceHistory, ScheduledPromotion
 from ProjectSmartShelf.utils import send_price_update
 from ProjectSmartShelf.views import prepare_promotions_for_display
 
@@ -55,6 +56,148 @@ class SidebarRecommendationBadgeTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'recommendation-badge')
+
+
+class ReportsPageTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='staff',
+            password='password123',
+            is_staff=True,
+        )
+        self.client.login(username='staff', password='password123')
+        self.report_date = datetime.date(2026, 5, 18)
+        DailyProductSales.objects.create(
+            date=self.report_date,
+            day_of_week='Monday',
+            category='Dairy',
+            product_name='Milk',
+            current_price=Decimal('12.50'),
+            units_sold=4,
+        )
+        DailyProductSales.objects.create(
+            date=self.report_date,
+            day_of_week='Monday',
+            category='Bakery',
+            product_name='Bread',
+            current_price=Decimal('8.75'),
+            units_sold=2,
+        )
+
+    def test_reports_page_renders_sales_summary(self):
+        response = self.client.get(reverse('reports'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Sales Reports')
+        self.assertContains(response, 'Milk')
+        self.assertContains(response, '$67.50')
+        self.assertContains(response, 'Export CSV')
+        self.assertContains(response, 'href="/ProjectSmartShelf/reports/"')
+
+    def test_reports_page_filters_by_category(self):
+        response = self.client.get(reverse('reports'), {'category': 'Dairy'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['product_data']), 1)
+        self.assertEqual(response.context['product_data'][0]['product_name'], 'Milk')
+        self.assertEqual(response.context['summary']['total_revenue'], Decimal('50.00'))
+
+    def test_reports_export_csv_uses_current_filters(self):
+        response = self.client.get(reverse('export_sales_report_csv'), {'category': 'Dairy'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/csv')
+        content = response.content.decode()
+        self.assertIn('Milk', content)
+        self.assertIn('$50.00', content)
+        self.assertNotIn('Bread', content)
+
+
+class PricingDemandLogicTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='staff',
+            password='password123',
+            is_staff=True,
+        )
+        self.client.login(username='staff', password='password123')
+        self.base_date = datetime.date(2026, 5, 21)
+        self.product = Product.objects.create(
+            name='Milk',
+            category='Dairy',
+            price=Decimal('12.50'),
+            inventory_level=20,
+            expiry_date=self.base_date + datetime.timedelta(days=5),
+        )
+
+    def create_daily_sale(self, sale_date, units_sold):
+        return DailyProductSales.objects.create(
+            date=sale_date,
+            day_of_week=sale_date.strftime('%A'),
+            category=self.product.category,
+            product_name=self.product.name,
+            current_price=self.product.price,
+            units_sold=units_sold,
+        )
+
+    @patch('ProjectSmartShelf.views.predict_prices_batch')
+    def test_pricing_dashboard_demand_uses_yesterday_and_day_before_yesterday(self, mock_predict_prices_batch):
+        mock_predict_prices_batch.return_value = [(self.product, Decimal('13.25'))]
+        self.create_daily_sale(self.base_date, 99)
+        self.create_daily_sale(self.base_date - datetime.timedelta(days=1), 8)
+        self.create_daily_sale(self.base_date - datetime.timedelta(days=2), 4)
+        session = self.client.session
+        session['simulated_date'] = self.base_date.strftime('%Y-%m-%d')
+        session.save()
+
+        response = self.client.get(reverse('pricing_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        item = response.context['report_data'][0]
+        self.assertEqual(item['sales_lag_1'], 8)
+        self.assertEqual(item['sales_lag_2'], 4)
+        self.assertEqual(item['demand_change'], 100)
+        self.assertIn('8 sold yesterday vs 4 the day before', item['pricing_reason'])
+
+    def test_batch_prediction_features_use_completed_sales_days(self):
+        class FakeEncoder:
+            def transform(self, values):
+                return [0 for _ in values]
+
+        class FakeModel:
+            feature_names_in_ = [
+                'product_name',
+                'category',
+                'inventory_level',
+                'days_until_expiry',
+                'sales_lag_1',
+                'sales_lag_2',
+                'demand_change',
+                'year',
+                'month',
+                'day',
+                'day_of_week',
+                'is_weekend',
+            ]
+
+            def predict(self, df):
+                self.last_df = df.copy()
+                return [13.25]
+
+        fake_model = FakeModel()
+        self.create_daily_sale(self.base_date, 99)
+        self.create_daily_sale(self.base_date - datetime.timedelta(days=1), 8)
+        self.create_daily_sale(self.base_date - datetime.timedelta(days=2), 4)
+
+        with patch.object(pricing_utils.ProjectsmartshelfConfig, 'model', fake_model), \
+             patch.object(pricing_utils.ProjectsmartshelfConfig, 'prod_encoder', FakeEncoder()), \
+             patch.object(pricing_utils.ProjectsmartshelfConfig, 'cat_encoder', FakeEncoder()):
+            results = pricing_utils.predict_prices_batch(base_date=self.base_date)
+
+        self.assertEqual(results, [(self.product, 13.25)])
+        self.assertEqual(fake_model.last_df.loc[0, 'sales_lag_1'], 8)
+        self.assertEqual(fake_model.last_df.loc[0, 'sales_lag_2'], 4)
+        self.assertEqual(fake_model.last_df.loc[0, 'demand_change'], 100)
 
 
 class ScheduledPromotionTests(TestCase):

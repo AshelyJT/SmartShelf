@@ -1,0 +1,622 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reports{% endblock %}
+
+{% block page_title %}<i class="bi bi-graph-up me-2"></i>Reports{% endblock %}
+
+{% block extra_css %}
+<style>
+    .reports-page {
+        --reports-panel: #171d2a;
+        --reports-panel-strong: #1d2534;
+        --reports-line: #2a3446;
+        --reports-muted: #9baabe;
+        --reports-blue: #5aa2ff;
+        --reports-teal: #45d6c5;
+        --reports-green: #71d66f;
+        --reports-amber: #ffcc66;
+        color: #eef4fb;
+    }
+
+    .report-command-bar,
+    .report-panel,
+    .report-stat {
+        background: linear-gradient(180deg, rgba(29, 37, 52, 0.95), rgba(20, 26, 38, 0.98));
+        border: 1px solid var(--reports-line);
+        border-radius: 8px;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.24);
+    }
+
+    .report-command-bar {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        padding: 1rem;
+    }
+
+    .report-command-title {
+        align-items: center;
+        display: flex;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+
+    .report-command-title .title-icon {
+        align-items: center;
+        background: rgba(69, 214, 197, 0.14);
+        border: 1px solid rgba(69, 214, 197, 0.28);
+        border-radius: 8px;
+        color: var(--reports-teal);
+        display: inline-flex;
+        height: 2.65rem;
+        justify-content: center;
+        width: 2.65rem;
+    }
+
+    .report-command-title h2 {
+        color: #ffffff;
+        font-size: 1rem;
+        line-height: 1.15;
+        margin: 0;
+    }
+
+    .report-command-title span {
+        color: var(--reports-muted);
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.2rem;
+    }
+
+    .report-command-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        justify-content: flex-end;
+    }
+
+    .report-stat-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-bottom: 1rem;
+    }
+
+    .report-stat {
+        min-height: 126px;
+        overflow: hidden;
+        padding: 1rem;
+        position: relative;
+    }
+
+    .report-stat::before {
+        content: "";
+        height: 3px;
+        left: 0;
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+
+    .report-stat.stat-revenue::before { background: var(--reports-green); }
+    .report-stat.stat-units::before { background: var(--reports-blue); }
+    .report-stat.stat-days::before { background: var(--reports-teal); }
+    .report-stat.stat-products::before { background: var(--reports-amber); }
+
+    .report-stat-top {
+        align-items: center;
+        display: flex;
+        gap: 0.75rem;
+        justify-content: space-between;
+        margin-bottom: 1.1rem;
+    }
+
+    .report-stat-label {
+        color: var(--reports-muted);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .report-stat-icon {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(129, 148, 175, 0.18);
+        border-radius: 8px;
+        color: var(--reports-teal);
+        display: inline-flex;
+        height: 2.3rem;
+        justify-content: center;
+        width: 2.3rem;
+    }
+
+    .report-stat-value {
+        color: #ffffff;
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .report-stat-note {
+        color: #b1bfd0;
+        font-size: 0.82rem;
+        margin-top: 0.7rem;
+    }
+
+    .report-panel {
+        margin-bottom: 1rem;
+        overflow: hidden;
+    }
+
+    .report-panel-header {
+        align-items: center;
+        border-bottom: 1px solid var(--reports-line);
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        padding: 1rem;
+    }
+
+    .report-panel-header h3 {
+        color: #ffffff;
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .report-panel-header span {
+        color: var(--reports-muted);
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.25rem;
+    }
+
+    .report-panel-body {
+        padding: 1rem;
+    }
+
+    .report-filter-grid {
+        display: grid;
+        gap: 0.9rem;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .report-filter-actions {
+        align-items: end;
+        display: flex;
+        gap: 0.6rem;
+    }
+
+    .report-chart-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.85fr);
+        margin-bottom: 1rem;
+    }
+
+    .report-chart-box {
+        height: 280px;
+        position: relative;
+        width: 100%;
+    }
+
+    .report-table-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.9fr);
+    }
+
+    .category-share {
+        align-items: center;
+        display: flex;
+        gap: 0.65rem;
+        min-width: 160px;
+    }
+
+    .category-share-track {
+        background: rgba(129, 148, 175, 0.15);
+        border-radius: 999px;
+        flex: 1;
+        height: 0.55rem;
+        overflow: hidden;
+    }
+
+    .category-share-fill {
+        background: linear-gradient(135deg, var(--reports-blue), var(--reports-teal));
+        border-radius: inherit;
+        height: 100%;
+        min-width: 0.25rem;
+    }
+
+    .empty-report-state {
+        align-items: center;
+        color: var(--reports-muted);
+        display: flex;
+        justify-content: center;
+        min-height: 180px;
+        text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+        .report-stat-grid,
+        .report-filter-grid,
+        .report-chart-grid,
+        .report-table-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .report-filter-actions {
+            grid-column: span 2;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .report-command-bar,
+        .report-panel-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .report-command-actions,
+        .report-filter-actions {
+            justify-content: stretch;
+        }
+
+        .report-command-actions .btn,
+        .report-filter-actions .btn {
+            flex: 1 1 auto;
+        }
+
+        .report-stat-grid,
+        .report-filter-grid,
+        .report-chart-grid,
+        .report-table-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .report-filter-actions {
+            grid-column: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="reports-page">
+    <div class="report-command-bar">
+        <div class="report-command-title">
+            <span class="title-icon"><i class="bi bi-clipboard-data"></i></span>
+            <div>
+                <h2>Sales Reports</h2>
+                <span>{{ filters.start_date|date:"Y-m-d" }} to {{ filters.end_date|date:"Y-m-d" }}</span>
+            </div>
+        </div>
+        <div class="report-command-actions">
+            <a href="{% url 'export_sales_report_csv' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+                <i class="bi bi-download"></i> Export CSV
+            </a>
+        </div>
+    </div>
+
+    <form method="get" class="report-panel">
+        <div class="report-panel-header">
+            <div>
+                <h3>Report Filters</h3>
+                <span>{{ summary.record_count }} daily product records</span>
+            </div>
+        </div>
+        <div class="report-panel-body">
+            <div class="report-filter-grid">
+                <div>
+                    <label for="start_date" class="form-label">From Date</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ filters.start_date|date:'Y-m-d' }}">
+                </div>
+                <div>
+                    <label for="end_date" class="form-label">To Date</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ filters.end_date|date:'Y-m-d' }}">
+                </div>
+                <div>
+                    <label for="category" class="form-label">Category</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                            <option value="{{ category }}" {% if filters.category == category %}selected{% endif %}>{{ category }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="product_name" class="form-label">Product</label>
+                    <select class="form-select" id="product_name" name="product_name">
+                        <option value="">All Products</option>
+                        {% for product_name in product_names %}
+                            <option value="{{ product_name }}" {% if filters.product_name == product_name %}selected{% endif %}>{{ product_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="report-filter-actions">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Apply</button>
+                    <a href="{% url 'reports' %}" class="btn btn-secondary"><i class="bi bi-x-lg"></i> Clear</a>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="report-stat-grid">
+        <div class="report-stat stat-revenue">
+            <div class="report-stat-top">
+                <div class="report-stat-label">Revenue</div>
+                <span class="report-stat-icon"><i class="bi bi-cash-stack"></i></span>
+            </div>
+            <div class="report-stat-value">${{ summary.total_revenue|floatformat:2 }}</div>
+            <div class="report-stat-note">${{ summary.avg_daily_revenue|floatformat:2 }} average per active day</div>
+        </div>
+        <div class="report-stat stat-units">
+            <div class="report-stat-top">
+                <div class="report-stat-label">Units Sold</div>
+                <span class="report-stat-icon"><i class="bi bi-basket"></i></span>
+            </div>
+            <div class="report-stat-value">{{ summary.total_units }}</div>
+            <div class="report-stat-note">{{ summary.product_count }} products in range</div>
+        </div>
+        <div class="report-stat stat-days">
+            <div class="report-stat-top">
+                <div class="report-stat-label">Sales Days</div>
+                <span class="report-stat-icon"><i class="bi bi-calendar-range"></i></span>
+            </div>
+            <div class="report-stat-value">{{ summary.sales_days }}</div>
+            <div class="report-stat-note">${{ summary.avg_price|floatformat:2 }} average recorded price</div>
+        </div>
+        <div class="report-stat stat-products">
+            <div class="report-stat-top">
+                <div class="report-stat-label">Top Product</div>
+                <span class="report-stat-icon"><i class="bi bi-star"></i></span>
+            </div>
+            <div class="report-stat-value">
+                {% if best_product %}
+                    {{ best_product.total_units }}
+                {% else %}
+                    0
+                {% endif %}
+            </div>
+            <div class="report-stat-note">
+                {% if best_product %}
+                    {{ best_product.product_name }}
+                {% else %}
+                    No product activity
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="report-chart-grid">
+        <div class="report-panel">
+            <div class="report-panel-header">
+                <div>
+                    <h3>Daily Performance</h3>
+                    <span>Revenue and units by summary date</span>
+                </div>
+            </div>
+            <div class="report-panel-body">
+                {% if daily_data %}
+                    <div class="report-chart-box">
+                        <canvas id="daily-report-chart"></canvas>
+                    </div>
+                {% else %}
+                    <div class="empty-report-state">No sales summaries match this report range.</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="report-panel">
+            <div class="report-panel-header">
+                <div>
+                    <h3>Category Mix</h3>
+                    <span>{% if best_category %}Top category: {{ best_category.category }}{% else %}No category data{% endif %}</span>
+                </div>
+            </div>
+            <div class="report-panel-body">
+                {% if category_data %}
+                    <div class="report-chart-box">
+                        <canvas id="category-report-chart"></canvas>
+                    </div>
+                {% else %}
+                    <div class="empty-report-state">No category data available.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="report-table-grid">
+        <div class="report-panel">
+            <div class="report-panel-header">
+                <div>
+                    <h3>Top Products</h3>
+                    <span>Ranked by revenue</span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Category</th>
+                            <th>Units</th>
+                            <th>Avg Price</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in product_data %}
+                        <tr>
+                            <td>{{ product.product_name }}</td>
+                            <td><span class="category-chip">{{ product.category }}</span></td>
+                            <td>{{ product.total_units }}</td>
+                            <td>${{ product.avg_price|floatformat:2 }}</td>
+                            <td>${{ product.total_revenue|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">No product records found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="report-panel">
+            <div class="report-panel-header">
+                <div>
+                    <h3>Categories</h3>
+                    <span>Revenue share by department</span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Units</th>
+                            <th>Revenue</th>
+                            <th>Share</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category in category_data %}
+                        <tr>
+                            <td>{{ category.category }}</td>
+                            <td>{{ category.total_units }}</td>
+                            <td>${{ category.total_revenue|floatformat:2 }}</td>
+                            <td>
+                                <div class="category-share">
+                                    <div class="category-share-track">
+                                        <div class="category-share-fill" style="width: {{ category.revenue_share|floatformat:0 }}%;"></div>
+                                    </div>
+                                    <span>{{ category.revenue_share|floatformat:0 }}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-4">No category records found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ daily_chart_data|json_script:"daily-report-data" }}
+{{ category_chart_data|json_script:"category-report-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!window.Chart) {
+            return;
+        }
+
+        const gridColor = 'rgba(129, 148, 175, 0.18)';
+        const tickColor = '#b1bfd0';
+        const dailyNode = document.getElementById('daily-report-data');
+        const categoryNode = document.getElementById('category-report-data');
+        const dailyCanvas = document.getElementById('daily-report-chart');
+        const categoryCanvas = document.getElementById('category-report-chart');
+
+        if (dailyNode && dailyCanvas) {
+            const dailyData = JSON.parse(dailyNode.textContent);
+            new Chart(dailyCanvas, {
+                data: {
+                    labels: dailyData.labels,
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Revenue',
+                            data: dailyData.revenue,
+                            backgroundColor: 'rgba(69, 214, 197, 0.32)',
+                            borderColor: '#45d6c5',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            type: 'line',
+                            label: 'Units',
+                            data: dailyData.units,
+                            borderColor: '#5aa2ff',
+                            backgroundColor: 'rgba(90, 162, 255, 0.12)',
+                            tension: 0.35,
+                            fill: true,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { labels: { color: tickColor } }
+                    },
+                    scales: {
+                        x: { grid: { color: gridColor }, ticks: { color: tickColor } },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: gridColor },
+                            ticks: {
+                                color: tickColor,
+                                callback: (value) => '$' + value
+                            }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            grid: { drawOnChartArea: false },
+                            position: 'right',
+                            ticks: { color: tickColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        if (categoryNode && categoryCanvas) {
+            const categoryData = JSON.parse(categoryNode.textContent);
+            new Chart(categoryCanvas, {
+                type: 'doughnut',
+                data: {
+                    labels: categoryData.labels,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: categoryData.revenue,
+                        backgroundColor: [
+                            '#45d6c5',
+                            '#5aa2ff',
+                            '#71d66f',
+                            '#ffcc66',
+                            '#ff7a7a',
+                            '#8f7aff',
+                            '#59d98e',
+                            '#c7d2fe'
+                        ],
+                        borderColor: '#171d2a',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: tickColor, boxWidth: 12 }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
