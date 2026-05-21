@@ -602,7 +602,14 @@ def predict_tomorrow_price(request):
                     prediction_error = "The AI pricing model is not loaded yet."
                 else:
                     input_df = prepare_input_for_tomorrow(
-                        p_name, p_cat, inventory, expiry, sales_yesterday, sales_day_before_yesterday, model
+                        p_name,
+                        p_cat,
+                        inventory,
+                        expiry,
+                        sales_yesterday,
+                        sales_day_before_yesterday,
+                        model,
+                        current_price=selected_product.price,
                     )
                     result = model.predict(input_df)
                     predicted_price = round(result[0], 2)
@@ -621,11 +628,16 @@ def predict_tomorrow_price(request):
             if not prediction_date:
                 raise ValueError("Prediction date is required.")
 
+            current_price = float(request.POST.get("advanced_current_price"))
             inventory = float(request.POST.get("advanced_inventory"))
-            if selected_product.expiry_date:
-                advanced_days_until_expiry = (selected_product.expiry_date - prediction_date).days
+            advanced_days_until_expiry_raw = request.POST.get("advanced_days_until_expiry")
+            if advanced_days_until_expiry_raw in (None, ''):
+                if selected_product.expiry_date:
+                    advanced_days_until_expiry = (selected_product.expiry_date - prediction_date).days
+                else:
+                    advanced_days_until_expiry = 30
             else:
-                advanced_days_until_expiry = 30
+                advanced_days_until_expiry = int(float(advanced_days_until_expiry_raw))
             sales_lag_1 = float(request.POST.get("sales_lag_1"))
             sales_lag_2 = float(request.POST.get("sales_lag_2"))
             advanced_demand_change = calculate_demand_change(sales_lag_1, sales_lag_2)
@@ -656,6 +668,7 @@ def predict_tomorrow_price(request):
                         advanced_demand_change,
                         prediction_date,
                         model,
+                        current_price=current_price,
                     )
                     result = model.predict(input_df)
                     advanced_price = round(result[0], 2)

@@ -456,6 +456,7 @@
                                         value="{{ product.id }}"
                                         data-category="{{ product.category }}"
                                         data-inventory="{{ product.inventory_level }}"
+                                        data-price="{{ product.price }}"
                                         data-expiry="{{ product.expiry_date|date:'Y-m-d' }}"
                                         {% if selected_product_id == product.id|stringformat:"s" %}selected{% endif %}
                                     >
@@ -575,6 +576,7 @@
                                     value="{{ product.id }}"
                                     data-category="{{ product.category }}"
                                     data-inventory="{{ product.inventory_level }}"
+                                    data-price="{{ product.price }}"
                                     data-expiry="{{ product.expiry_date|date:'Y-m-d' }}"
                                     {% if advanced_selected_product_id == product.id|stringformat:"s" %}selected{% endif %}
                                 >
@@ -588,12 +590,16 @@
                         <input type="text" id="advanced_category_display" class="form-control" value="{{ advanced_selected_product.category }}" readonly>
                     </div>
                     <div>
+                        <label for="advanced_current_price" class="form-label">Current Price</label>
+                        <input type="number" id="advanced_current_price" name="advanced_current_price" class="form-control" min="0" step="0.01" placeholder="e.g. 12.50" value="{% if advanced_form_data.advanced_current_price %}{{ advanced_form_data.advanced_current_price }}{% elif advanced_selected_product %}{{ advanced_selected_product.price }}{% endif %}" required>
+                    </div>
+                    <div>
                         <label for="advanced_inventory" class="form-label">Inventory Level</label>
                         <input type="number" id="advanced_inventory" name="advanced_inventory" class="form-control" min="0" step="1" placeholder="e.g. 24" value="{{ advanced_form_data.advanced_inventory }}" required>
                     </div>
                     <div>
                         <label for="days_until_expiry" class="form-label">Days Until Expiry</label>
-                        <input type="number" id="days_until_expiry" class="form-control" step="1" value="{% if advanced_days_until_expiry != None %}{{ advanced_days_until_expiry }}{% endif %}" readonly>
+                        <input type="number" id="days_until_expiry" name="advanced_days_until_expiry" class="form-control" step="1" placeholder="e.g. 5" value="{% if advanced_form_data.advanced_days_until_expiry %}{{ advanced_form_data.advanced_days_until_expiry }}{% elif advanced_days_until_expiry != None %}{{ advanced_days_until_expiry }}{% endif %}" required>
                     </div>
                     <div>
                         <label for="sales_lag_1" class="form-label">Sales Lag 1 (Yesterday)</label>
@@ -672,13 +678,14 @@
             return select && select.selectedOptions ? select.selectedOptions[0] : null;
         }
 
-        function syncProductFields(select, categoryDisplay, inventoryInput, expiryInput, overwriteScenarioFields) {
+        function syncProductFields(select, categoryDisplay, inventoryInput, expiryInput, currentPriceInput, overwriteScenarioFields) {
             const option = selectedOption(select);
             if (!option || !option.value) {
                 categoryDisplay.value = "";
                 if (overwriteScenarioFields) {
                     if (inventoryInput) inventoryInput.value = "";
                     if (expiryInput) expiryInput.value = "";
+                    if (currentPriceInput) currentPriceInput.value = "";
                 }
                 return;
             }
@@ -687,6 +694,7 @@
             if (overwriteScenarioFields) {
                 if (inventoryInput) inventoryInput.value = option.dataset.inventory || "";
                 if (expiryInput) expiryInput.value = option.dataset.expiry || "";
+                if (currentPriceInput) currentPriceInput.value = option.dataset.price || "";
             }
         }
 
@@ -769,20 +777,21 @@
         const categoryDisplay = document.getElementById("category_display");
         const inventoryInput = document.getElementById("inventory");
         const expiryInput = document.getElementById("expiry_date");
-        syncProductFields(productSelect, categoryDisplay, inventoryInput, expiryInput, false);
+        syncProductFields(productSelect, categoryDisplay, inventoryInput, expiryInput, null, false);
         productSelect.addEventListener("change", function () {
-            syncProductFields(productSelect, categoryDisplay, inventoryInput, expiryInput, true);
+            syncProductFields(productSelect, categoryDisplay, inventoryInput, expiryInput, null, true);
         });
 
         const advancedProductSelect = document.getElementById("advanced_product_id");
         const advancedCategoryDisplay = document.getElementById("advanced_category_display");
+        const advancedCurrentPriceInput = document.getElementById("advanced_current_price");
         const advancedInventoryInput = document.getElementById("advanced_inventory");
         const predictionDateInput = document.getElementById("prediction_date");
-        syncProductFields(advancedProductSelect, advancedCategoryDisplay, advancedInventoryInput, null, false);
+        syncProductFields(advancedProductSelect, advancedCategoryDisplay, advancedInventoryInput, null, advancedCurrentPriceInput, false);
         updateAdvancedTimeFeatures();
         syncAdvancedDaysUntilExpiry();
         advancedProductSelect.addEventListener("change", function () {
-            syncProductFields(advancedProductSelect, advancedCategoryDisplay, advancedInventoryInput, null, true);
+            syncProductFields(advancedProductSelect, advancedCategoryDisplay, advancedInventoryInput, null, advancedCurrentPriceInput, true);
             syncAdvancedDaysUntilExpiry();
         });
         predictionDateInput.addEventListener("change", function () {

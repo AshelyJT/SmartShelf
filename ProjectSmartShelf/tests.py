@@ -168,6 +168,7 @@ class PricingDemandLogicTests(TestCase):
             feature_names_in_ = [
                 'product_name',
                 'category',
+                'current_price',
                 'inventory_level',
                 'days_until_expiry',
                 'sales_lag_1',
@@ -198,6 +199,58 @@ class PricingDemandLogicTests(TestCase):
         self.assertEqual(fake_model.last_df.loc[0, 'sales_lag_1'], 8)
         self.assertEqual(fake_model.last_df.loc[0, 'sales_lag_2'], 4)
         self.assertEqual(fake_model.last_df.loc[0, 'demand_change'], 100)
+        self.assertEqual(fake_model.last_df.loc[0, 'current_price'], 12.5)
+
+    def test_advanced_prediction_uses_submitted_current_price(self):
+        class FakeEncoder:
+            def transform(self, values):
+                return [0 for _ in values]
+
+        class FakeModel:
+            feature_names_in_ = [
+                'product_name',
+                'category',
+                'current_price',
+                'inventory_level',
+                'days_until_expiry',
+                'sales_lag_1',
+                'sales_lag_2',
+                'demand_change',
+                'year',
+                'month',
+                'day',
+                'day_of_week',
+                'is_weekend',
+            ]
+
+            def predict(self, df):
+                if not hasattr(self, 'captured_dfs'):
+                    self.captured_dfs = []
+                self.captured_dfs.append(df.copy())
+                self.last_df = df.copy()
+                return [9.99]
+
+        fake_model = FakeModel()
+
+        with patch.object(pricing_utils.ProjectsmartshelfConfig, 'model', fake_model), \
+             patch.object(pricing_utils.ProjectsmartshelfConfig, 'prod_encoder', FakeEncoder()), \
+             patch.object(pricing_utils.ProjectsmartshelfConfig, 'cat_encoder', FakeEncoder()):
+            response = self.client.post(reverse('predict_price'), {
+                'prediction_mode': 'advanced',
+                'advanced_product_id': str(self.product.id),
+                'advanced_current_price': '9.75',
+                'advanced_inventory': '20',
+                'advanced_days_until_expiry': '2',
+                'prediction_date': self.base_date.strftime('%Y-%m-%d'),
+                'sales_lag_1': '8',
+                'sales_lag_2': '4',
+            })
+
+        self.assertEqual(response.status_code, 200)
+        captured_prices = [df.loc[0, 'current_price'] for df in fake_model.captured_dfs]
+        captured_expiry_days = [df.loc[0, 'days_until_expiry'] for df in fake_model.captured_dfs]
+        self.assertIn(9.75, captured_prices)
+        self.assertIn(2, captured_expiry_days)
 
 
 class ScheduledPromotionTests(TestCase):
