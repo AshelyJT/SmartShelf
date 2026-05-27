@@ -19,7 +19,11 @@ from decimal import Decimal
 from .models import DailyProductSales, PriceHistory, ScheduledPromotion
 from .apps import ProjectsmartshelfConfig
 from .ml_models.utils import calculate_demand_change, prepare_advanced_input, prepare_input_for_tomorrow, predict_prices_batch
-from .recommendations import build_recommendations
+from .recommendations import (
+    build_recommendations,
+    price_difference_percent,
+    should_suppress_ai_recommendation,
+)
 from .simulation import (
     clear_active_simulated_date,
     get_active_day,
@@ -765,10 +769,13 @@ def pricing_dashboard(request):
 
         price_delta = ai_price - current_price
         price_delta_abs = abs(price_delta)
-        if current_price > 0:
-            price_delta_percent = (price_delta / current_price) * 100
-        else:
-            price_delta_percent = 0
+        price_delta_percent = price_difference_percent(current_price, ai_price)
+
+        if (
+            not expired_pricing_rule
+            and should_suppress_ai_recommendation(product, current_price, ai_price)
+        ):
+            continue
 
         # Determine price trend
         if ai_price > current_price:

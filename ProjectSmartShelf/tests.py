@@ -159,6 +159,51 @@ class PricingDemandLogicTests(TestCase):
         self.assertEqual(item['demand_change'], 100)
         self.assertIn('8 sold yesterday vs 4 the day before', item['pricing_reason'])
 
+    @patch('ProjectSmartShelf.views.predict_prices_batch')
+    def test_pricing_dashboard_suppresses_small_same_day_ai_followup(self, mock_predict_prices_batch):
+        self.product.price = Decimal('10.00')
+        self.product.expiry_date = self.base_date + datetime.timedelta(days=10)
+        self.product.save()
+        PriceHistory.objects.create(
+            product=self.product,
+            changed_by=self.user,
+            old_price=Decimal('12.50'),
+            new_price=Decimal('10.00'),
+            reason='Applied AI pricing recommendation',
+        )
+        mock_predict_prices_batch.return_value = [(self.product, Decimal('10.20'))]
+        session = self.client.session
+        session['simulated_date'] = self.base_date.strftime('%Y-%m-%d')
+        session.save()
+
+        response = self.client.get(reverse('pricing_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['report_data'], [])
+
+    @patch('ProjectSmartShelf.views.predict_prices_batch')
+    def test_pricing_dashboard_allows_meaningful_same_day_ai_followup(self, mock_predict_prices_batch):
+        self.product.price = Decimal('10.00')
+        self.product.expiry_date = self.base_date + datetime.timedelta(days=10)
+        self.product.save()
+        PriceHistory.objects.create(
+            product=self.product,
+            changed_by=self.user,
+            old_price=Decimal('12.50'),
+            new_price=Decimal('10.00'),
+            reason='Applied AI pricing recommendation',
+        )
+        mock_predict_prices_batch.return_value = [(self.product, Decimal('10.80'))]
+        session = self.client.session
+        session['simulated_date'] = self.base_date.strftime('%Y-%m-%d')
+        session.save()
+
+        response = self.client.get(reverse('pricing_dashboard'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['report_data']), 1)
+        self.assertEqual(response.context['report_data'][0]['ai_price'], Decimal('10.80'))
+
     def test_batch_prediction_features_use_completed_sales_days(self):
         class FakeEncoder:
             def transform(self, values):

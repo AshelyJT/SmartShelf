@@ -1,10 +1,46 @@
 import datetime
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
+from django.utils import timezone
 
-from .models import DailyProductSales
+from .models import DailyProductSales, PriceHistory
 from .ml_models.utils import predict_prices_batch
+
+
+AI_PRICE_REASON_MARKERS = (
+    'Applied AI pricing recommendation',
+    'Applied all AI pricing recommendations',
+    'AI suggests',
+)
+AI_RECOMMENDATION_MIN_DIFF_PERCENT = Decimal('5')
+
+
+def price_difference_percent(current_price, ai_price):
+    if current_price <= 0:
+        return Decimal('0')
+    return ((ai_price - current_price) / current_price) * Decimal('100')
+
+
+def has_recent_ai_price_application(product, applied_date=None):
+    if applied_date is None:
+        applied_date = timezone.localdate()
+
+    marker_query = Q()
+    for marker in AI_PRICE_REASON_MARKERS:
+        marker_query |= Q(reason__icontains=marker)
+
+    return PriceHistory.objects.filter(
+        product=product,
+        changed_at__date=applied_date,
+    ).filter(marker_query).exists()
+
+
+def should_suppress_ai_recommendation(product, current_price, ai_price, applied_date=None):
+    price_diff_pct = abs(price_difference_percent(current_price, ai_price))
+    if price_diff_pct >= AI_RECOMMENDATION_MIN_DIFF_PERCENT:
+        return False
+    return has_recent_ai_price_application(product, applied_date=applied_date)
 
 
 def build_recommendations(base_date):
@@ -26,9 +62,13 @@ def build_recommendations(base_date):
         if days_until_expiry is not None and days_until_expiry < 0:
             ai_price = Decimal('0.00')
 
-        price_diff_pct = 0
-        if current_price > 0:
-            price_diff_pct = ((ai_price - current_price) / current_price) * 100
+        if (
+            (days_until_expiry is None or days_until_expiry >= 0)
+            and should_suppress_ai_recommendation(product, current_price, ai_price)
+        ):
+            continue
+
+        price_diff_pct = price_difference_percent(current_price, ai_price)
 
         if days_until_expiry is not None and days_until_expiry < 0:
             urgency = 'high'
